@@ -14,6 +14,7 @@
 const int VIBRATION_PIN = A0;
 const int AIR_QUALITY_SENSOR_PIN = A1;
 const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A2;
+const int UV_SENSOR_PIN = A3;
 const int AIR_QUALITY_SENSOR_LED_PIN = 3;
 
 const int TIME_OF_MEASUREMENT = 280;
@@ -23,6 +24,7 @@ const int TIME_OF_SLEEP = 9680;
 float airQualityValue = 0;
 int vibrationSensorValue = 0;
 int capacitiveSoilMoistureSensorValue = 0;
+float uvSensorValue = 0;
 
 OpenCansatGPS gps;
 
@@ -43,9 +45,10 @@ void loop() {
   measureAirQuality();
   measureVibrations();
   measureCapacitiveSoilMoistureSensor();
+  measureUVSensor();
 
   gps.scan(350);
-  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue));
+  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue));
   delay(10);
 }
 
@@ -66,4 +69,9 @@ void measureVibrations() {
 
 void measureCapacitiveSoilMoistureSensor() {
   capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
+}
+
+void measureUVSensor() {
+  int uvAnalog = analogRead(UV_SENSOR_PIN);
+  uvSensorValue = uvAnalog * (3300.0 / 1024.0);
 }
