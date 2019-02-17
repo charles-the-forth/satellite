@@ -1,11 +1,11 @@
 #include "Arduino.h"
 
-#include <Adafruit_BME280.h>  // include Adafruit BME280 library
-#include <Adafruit_INA219.h>  // include INA219
-#include <SD.h>          // include Arduino SD library
+#include <Adafruit_BME280.h>
+#include <Adafruit_INA219.h>
+#include <SD.h>
 #include "Open_Cansat_GPS.h"
 
-#include <RFM69.h>       // include RFM69 library
+#include <RFM69.h>
 #include <SPI.h>
 
 
@@ -13,6 +13,7 @@
 
 const int VIBRATION_PIN = A0;
 const int AIR_QUALITY_SENSOR_PIN = A1;
+const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A2;
 const int AIR_QUALITY_SENSOR_LED_PIN = 3;
 
 const int TIME_OF_MEASUREMENT = 280;
@@ -21,13 +22,12 @@ const int TIME_OF_SLEEP = 9680;
 
 float airQualityValue = 0;
 int vibrationSensorValue = 0;
+int capacitiveSoilMoistureSensorValue = 0;
 
 OpenCansatGPS gps;
 
 void setup() {
   Serial.begin(57600); 
-
-  Serial.println("Setup");
 
   //TODO - check if GPS connected
 
@@ -42,9 +42,10 @@ void setup() {
 void loop() {
   measureAirQuality();
   measureVibrations();
+  measureCapacitiveSoilMoistureSensor();
 
   gps.scan(350);
-  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()));
+  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue));
   delay(10);
 }
 
@@ -61,4 +62,8 @@ void measureAirQuality() {
 
 void measureVibrations() {
   vibrationSensorValue = analogRead(VIBRATION_PIN);
+}
+
+void measureCapacitiveSoilMoistureSensor() {
+  capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
 }
