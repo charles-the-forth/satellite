@@ -1,13 +1,11 @@
 #include "Arduino.h"
 
-#include <Adafruit_BME280.h>
 #include <Adafruit_INA219.h>
 #include <SD.h>
 #include "Open_Cansat_GPS.h"
 
 #include <RFM69.h>
 #include <SPI.h>
-
 
 #define Serial SerialUSB
 
@@ -73,5 +71,25 @@ void measureCapacitiveSoilMoistureSensor() {
 
 void measureUVSensor() {
   int uvAnalog = analogRead(UV_SENSOR_PIN);
-  uvSensorValue = uvAnalog * (3300.0 / 1024.0);
+  float uvVoltage = uvAnalog * (3300.0 / 1024.0);
+  int uvIndexLimits [12] = { 50, 227, 318, 408, 503, 606, 696, 795, 881, 976, 1079, 1170};
+  int i;
+
+  //Max measurable value.
+  if (uvVoltage > 1170) {
+    uvVoltage = 1170;
+  }
+  
+  for (i = 0; i < 12; i++) {
+    if (uvAnalog <= uvIndexLimits[i]) {
+      uvSensorValue = i;
+      break;
+    }
+  }
+
+  if (i > 0) {
+    float indexDiff = uvIndexLimits[i] - uvIndexLimits[i - 1];
+    float valueDiff = uvAnalog - uvIndexLimits[i - 1];
+    uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
+  }
 }
