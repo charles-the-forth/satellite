@@ -3,6 +3,7 @@
 #include <Adafruit_INA219.h>
 #include <SD.h>
 #include "Open_Cansat_GPS.h"
+#include <BH1750.h>
 
 #include <RFM69.h>
 #include <SPI.h>
@@ -23,8 +24,10 @@ float airQualityValue = 0;
 int vibrationSensorValue = 0;
 int capacitiveSoilMoistureSensorValue = 0;
 float uvSensorValue = 0;
+int lightIntesity = 0;
 
 OpenCansatGPS gps;
+BH1750 lightMeter;
 
 void setup() {
   Serial.begin(57600); 
@@ -35,6 +38,8 @@ void setup() {
 
   //gps.debugPrintOn(57600);
 
+  lightMeter.begin();
+
   pinMode(VIBRATION_PIN, INPUT);
   pinMode(AIR_QUALITY_SENSOR_LED_PIN, OUTPUT);
 }
@@ -44,9 +49,10 @@ void loop() {
   measureVibrations();
   measureCapacitiveSoilMoistureSensor();
   measureUVSensor();
+  measureLightIntensity();
 
   gps.scan(350);
-  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue));
+  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity));
   delay(10);
 }
 
@@ -92,4 +98,8 @@ void measureUVSensor() {
     float valueDiff = uvAnalog - uvIndexLimits[i - 1];
     uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
   }
+}
+
+void measureLightIntensity() {
+  lightIntesity = lightMeter.readLightLevel();
 }
