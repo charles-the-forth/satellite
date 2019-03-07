@@ -10,10 +10,9 @@
 
 #define Serial SerialUSB
 
-const int VIBRATION_PIN = A0;
-const int AIR_QUALITY_SENSOR_PIN = A1;
-const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A2;
-const int UV_SENSOR_PIN = A3;
+const int AIR_QUALITY_SENSOR_PIN = A0;
+const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A1;
+const int UV_SENSOR_PIN = A2;
 const int AIR_QUALITY_SENSOR_LED_PIN = 3;
 
 const int TIME_OF_MEASUREMENT = 280;
@@ -46,13 +45,12 @@ void setup() {
 
 void loop() {
   measureAirQuality();
-  measureVibrations();
   measureCapacitiveSoilMoistureSensor();
   measureUVSensor();
   measureLightIntensity();
 
   gps.scan(350);
-  Serial.println(String(airQualityValue) + ";" + String(vibrationSensorValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity));
+  Serial.println(String(airQualityValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity));
   delay(10);
 }
 
@@ -65,10 +63,6 @@ void measureAirQuality() {
   delayMicroseconds(TIME_OF_SLEEP);
   float voltageConversion = measuredVoltage * (3.3 / 1024.0);
   airQualityValue = (0.17 * voltageConversion - 0.1) * 1000;
-}
-
-void measureVibrations() {
-  vibrationSensorValue = analogRead(VIBRATION_PIN);
 }
 
 void measureCapacitiveSoilMoistureSensor() {
