@@ -7,6 +7,11 @@
 
 #include <RFM69.h>
 #include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
+#define BME280_ADDRESS_OPEN_CANSAT 0x77
+#define SEALEVELPRESSURE_HPA 1013.25
 
 #define Serial SerialUSB
 
@@ -27,6 +32,7 @@ int lightIntesity = 0;
 
 OpenCansatGPS gps;
 BH1750 lightMeter;
+Adafruit_BME280 bme_cansat;
 
 void setup() {
   Serial.begin(57600); 
@@ -35,11 +41,15 @@ void setup() {
 
   gps.begin();
 
+  if (!bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT))
+  {
+    Serial.println("CanSat BME280 sensor not found!");
+  }
+
   //gps.debugPrintOn(57600);
 
   lightMeter.begin();
 
-  pinMode(VIBRATION_PIN, INPUT);
   pinMode(AIR_QUALITY_SENSOR_LED_PIN, OUTPUT);
 }
 
@@ -50,7 +60,12 @@ void loop() {
   measureLightIntensity();
 
   gps.scan(350);
-  Serial.println(String(airQualityValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity));
+  Serial.println(
+    String(airQualityValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" 
+    + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" 
+    + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity) + ";" + String(bme_cansat.readTemperature()) + ";" + String(bme_cansat.readHumidity()) + ";" 
+    + String(bme_cansat.readPressure() / 100.0F) + ";" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA)))
+  );
   delay(10);
 }
 
