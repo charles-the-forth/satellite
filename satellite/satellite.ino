@@ -10,6 +10,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
+#define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
 #define SEALEVELPRESSURE_HPA 1013.25
 
@@ -32,6 +33,7 @@ int lightIntesity = 0;
 
 OpenCansatGPS gps;
 BH1750 lightMeter;
+Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
 
 void setup() {
@@ -40,6 +42,10 @@ void setup() {
   //TODO - check if GPS connected
 
   gps.begin();
+
+  if (!bme.begin(BME280_ADRESS)) {
+    Serial.println("Exnternal BME280 sensor not found!");
+  }
 
   if (!bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT))
   {
@@ -64,7 +70,8 @@ void loop() {
     String(airQualityValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" 
     + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" 
     + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity) + ";" + String(bme_cansat.readTemperature()) + ";" + String(bme_cansat.readHumidity()) + ";" 
-    + String(bme_cansat.readPressure() / 100.0F) + ";" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA)))
+    + String(bme_cansat.readPressure() / 100.0F) + ";" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA))) + ";" + String(bme.readTemperature()) + ";" + String(bme.readHumidity()) + ";" 
+    + String(bme.readPressure() / 100.0F) + ";" + String((bme.readAltitude(SEALEVELPRESSURE_HPA)))
   );
   delay(10);
 }
