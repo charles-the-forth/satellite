@@ -1,20 +1,16 @@
 #include "Arduino.h"
 
-#include <Adafruit_INA219.h>
-#include <SD.h>
 #include "Open_Cansat_GPS.h"
-#include <BH1750.h>
-
-#include <RFM69.h>
+#include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <BH1750.h>
+#include <MPU9250.h>
 
 #define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
 #define SEALEVELPRESSURE_HPA 1013.25
-
-#define Serial SerialUSB
 
 const int AIR_QUALITY_SENSOR_PIN = A0;
 const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A1;
@@ -32,48 +28,67 @@ float uvSensorValue = 0;
 int lightIntesity = 0;
 
 OpenCansatGPS gps;
-BH1750 lightMeter;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
+BH1750 lightMeter;
+
+#define Serial SerialUSB
+MPU9250 IMU(Wire,0x68);
+int status;
 
 void setup() {
-  Serial.begin(57600); 
-
-  //TODO - check if GPS connected
+  Serial.begin(9600);
 
   gps.begin();
-
+  
   if (!bme.begin(BME280_ADRESS)) {
-    Serial.println("Exnternal BME280 sensor not found!");
+    Serial.println("External BME280 not found!");
   }
-
+  
   if (!bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT))
   {
-    Serial.println("CanSat BME280 sensor not found!");
+    Serial.println("Internal BME280 not found!");
   }
-
-  //gps.debugPrintOn(57600);
-
+  
   lightMeter.begin();
 
-  pinMode(AIR_QUALITY_SENSOR_LED_PIN, OUTPUT);
+  status = IMU.begin();
+  if (status < 0) {
+    Serial.println("IMU initialization unsuccessful");
+    Serial.println("Check IMU wiring or try cycling power");
+    Serial.print("Status: ");
+    Serial.println(status);
+    while(1) {}
+  }
 }
 
 void loop() {
+  IMU.readSensor();
+
   measureAirQuality();
+  measureLightIntensity();
   measureCapacitiveSoilMoistureSensor();
   measureUVSensor();
-  measureLightIntensity();
 
   gps.scan(350);
+
   Serial.println(
-    String(airQualityValue) + ";" + gps.getLat() + ";" + gps.getLon() + ";" + String(gps.getNumberOfSatellites()) + ";" 
-    + String(gps.getYear()) + ";" + String(gps.getMonth()) + ";" + String(gps.getDay()) + ";" + String(gps.getHour()) + ";" + String(gps.getMinute()) + ";" + String(gps.getSecond()) + ";" 
-    + String(capacitiveSoilMoistureSensorValue) + ";" + String(uvSensorValue) + ";" + String(lightIntesity) + ";" + String(bme_cansat.readTemperature()) + ";" + String(bme_cansat.readHumidity()) + ";" 
-    + String(bme_cansat.readPressure() / 100.0F) + ";" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA))) + ";" + String(bme.readTemperature()) + ";" + String(bme.readHumidity()) + ";" 
-    + String(bme.readPressure() / 100.0F) + ";" + String((bme.readAltitude(SEALEVELPRESSURE_HPA)))
+    "air\tlat\tlon\tnum\tyear\tmonth\tday\thour\tmin\tsec\tcap\tuv\tlight\tbme_can_t\tbme_can_l\tbme_can_p\tbme_can_al\tbme_t\tbme_l\tbme_p\tbme_al\tAclX\tAclY\tAclZ\tGyrX\tGyrY\tGyrZ\tMagX\tMagY\tMagZ"
+  );
+  Serial.println(
+    String(airQualityValue) + "\t" + gps.getLat() + "\t" + gps.getLon() + "\t" + String(gps.getNumberOfSatellites()) + "\t"
+    + String(gps.getYear()) + "\t" + String(gps.getMonth()) + "\t" + String(gps.getDay()) + "\t" + String(gps.getHour()) + "\t" + String(gps.getMinute()) + "\t" + String(gps.getSecond()) + "\t"
+    + String(capacitiveSoilMoistureSensorValue) + "\t" + String(uvSensorValue) + "\t" + String(lightIntesity) + "\t" + String(bme_cansat.readTemperature()) + "\t\t" + String(bme_cansat.readHumidity()) + "\t\t"
+    + String(bme_cansat.readPressure() / 100.0F) + "\t\t" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA))) + "\t\t" + String(bme.readTemperature()) + "\t" + String(bme.readHumidity()) + "\t"
+    + String(bme.readPressure() / 100.0F) + "\t" + String(bme.readAltitude(SEALEVELPRESSURE_HPA)) +  "\t" + String(IMU.getAccelX_mss()) + "\t" + String(IMU.getAccelY_mss()) + "\t" + String(IMU.getAccelZ_mss()) + "\t"
+    + String((IMU.getGyroX_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroY_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroZ_rads() * 180 / PI), 6) + "\t" + String(IMU.getMagX_uT()) + "\t"
+    + String(IMU.getMagY_uT()) + "\t" + String(IMU.getMagZ_uT())
   );
   delay(10);
+}
+
+void measureLightIntensity() {
+  lightIntesity = lightMeter.readLightLevel();
 }
 
 void measureAirQuality() {
@@ -114,8 +129,4 @@ void measureUVSensor() {
     float valueDiff = uvAnalog - uvIndexLimits[i - 1];
     uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
   }
-}
-
-void measureLightIntensity() {
-  lightIntesity = lightMeter.readLightLevel();
 }
