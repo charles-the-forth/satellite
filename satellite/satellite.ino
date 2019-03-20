@@ -7,10 +7,19 @@
 #include <Adafruit_BME280.h>
 #include <BH1750.h>
 #include <MPU9250.h>
+#include <RFM69.h>
 
 #define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
 #define SEALEVELPRESSURE_HPA 1013.25
+// RFM69
+#define NETWORKID       0        // Must be the same for all nodes (0 to 255)
+#define MYNODEID        1          // My node ID (0 to 255)
+#define TONODEID        2          // Destination node ID (0 to 254, 255 = broadcast)
+#define FREQUENCY       RF69_433MHZ   // Frequency set up
+#define FREQUENCYSPECIFIC 433000000  // Should be value in Hz, now 433 Mhz will be set
+#define CHIP_SELECT_PIN   43 //radio chip select
+#define INTERUP_PIN       9 //radio interrupt
 
 const int AIR_QUALITY_SENSOR_PIN = A0;
 const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A1;
@@ -31,10 +40,20 @@ OpenCansatGPS gps;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
 BH1750 lightMeter;
+RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 
 #define Serial SerialUSB
 MPU9250 IMU(Wire,0x68);
 int status;
+
+typedef struct
+{
+  uint16_t lightIntensity;
+} messageOut;
+
+messageOut data;
+
+bool isRadioOk = true;
 
 void setup() {
   Serial.begin(9600);
@@ -60,6 +79,18 @@ void setup() {
     Serial.println(status);
     while(1) {}
   }
+
+  if(!radio.initialize(FREQUENCY, MYNODEID, NETWORKID))
+  {
+    isRadioOk = false;
+    Serial.println("RFM69HW initialization failed!");
+  }
+  else
+  {
+    radio.setFrequency(FREQUENCYSPECIFIC);
+    radio.setHighPower(true);
+    Serial.println("RFM69HW successful!");
+  }
 }
 
 void loop() {
@@ -84,11 +115,21 @@ void loop() {
     + String((IMU.getGyroX_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroY_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroZ_rads() * 180 / PI), 6) + "\t" + String(IMU.getMagX_uT()) + "\t"
     + String(IMU.getMagY_uT()) + "\t" + String(IMU.getMagZ_uT())
   );
+
+  if(isRadioOk)
+  {
+    Serial.println("Signal = " + static_cast<String>(radio.RSSI));
+    Serial.println("Light Intensity = " + static_cast<String>(data.lightIntensity));
+
+    radio.send(TONODEID, (const void*)&data, sizeof(data));
+  }
+
   delay(10);
 }
 
 void measureLightIntensity() {
   lightIntesity = lightMeter.readLightLevel();
+  data.lightIntensity = lightIntesity;
 }
 
 void measureAirQuality() {
