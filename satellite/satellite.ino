@@ -30,7 +30,6 @@ const int TIME_OF_MEASUREMENT = 280;
 const int TIME_OF_EQUALITY = 40;
 const int TIME_OF_SLEEP = 9680;
 
-float airQualityValue = 0;
 int vibrationSensorValue = 0;
 int capacitiveSoilMoistureSensorValue = 0;
 float uvSensorValue = 0;
@@ -49,6 +48,19 @@ int status;
 typedef struct
 {
   uint16_t lightIntensity;
+  float temperatureCanSat;
+  float temperatureExternal;
+  float temperatureMPU;
+  float pressureCanSat;
+  float pressureExternal;
+  float humidityCanSat;
+  float humidityExternal;
+  float accelerationX;
+  float accelerationY;
+  float accelerationZ;
+  float rotationX;
+  float rotationY;
+  float rotationZ;
 } messageOut;
 
 messageOut data;
@@ -96,20 +108,18 @@ void setup() {
 void loop() {
   IMU.readSensor();
 
-  measureAirQuality();
   measureLightIntensity();
-  measureCapacitiveSoilMoistureSensor();
-  measureUVSensor();
-
-  gps.scan(350);
+  measureTemperature();
+  measurePressure();
+  measureHumidity();
+  measureAcceleration();
+  measureRotation();
 
   Serial.println(
     "air\tlat\tlon\tnum\tyear\tmonth\tday\thour\tmin\tsec\tcap\tuv\tlight\tbme_can_t\tbme_can_l\tbme_can_p\tbme_can_al\tbme_t\tbme_l\tbme_p\tbme_al\tAclX\tAclY\tAclZ\tGyrX\tGyrY\tGyrZ\tMagX\tMagY\tMagZ"
   );
   Serial.println(
-    String(airQualityValue) + "\t" + gps.getLat() + "\t" + gps.getLon() + "\t" + String(gps.getNumberOfSatellites()) + "\t"
-    + String(gps.getYear()) + "\t" + String(gps.getMonth()) + "\t" + String(gps.getDay()) + "\t" + String(gps.getHour()) + "\t" + String(gps.getMinute()) + "\t" + String(gps.getSecond()) + "\t"
-    + String(capacitiveSoilMoistureSensorValue) + "\t" + String(uvSensorValue) + "\t" + String(lightIntesity) + "\t" + String(bme_cansat.readTemperature()) + "\t\t" + String(bme_cansat.readHumidity()) + "\t\t"
+    String(capacitiveSoilMoistureSensorValue) + "\t" + String(uvSensorValue) + "\t" + String(lightIntesity) + "\t" + String(bme_cansat.readTemperature()) + "\t\t" + String(bme_cansat.readHumidity()) + "\t\t"
     + String(bme_cansat.readPressure() / 100.0F) + "\t\t" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA))) + "\t\t" + String(bme.readTemperature()) + "\t" + String(bme.readHumidity()) + "\t"
     + String(bme.readPressure() / 100.0F) + "\t" + String(bme.readAltitude(SEALEVELPRESSURE_HPA)) +  "\t" + String(IMU.getAccelX_mss()) + "\t" + String(IMU.getAccelY_mss()) + "\t" + String(IMU.getAccelZ_mss()) + "\t"
     + String((IMU.getGyroX_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroY_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroZ_rads() * 180 / PI), 6) + "\t" + String(IMU.getMagX_uT()) + "\t"
@@ -124,7 +134,11 @@ void loop() {
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
 
-  delay(10);
+  delay(1000);
+}
+
+void scanGPS() {
+  gps.scan(350);
 }
 
 void measureLightIntensity() {
@@ -140,7 +154,6 @@ void measureAirQuality() {
   digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, HIGH);
   delayMicroseconds(TIME_OF_SLEEP);
   float voltageConversion = measuredVoltage * (3.3 / 1024.0);
-  airQualityValue = (0.17 * voltageConversion - 0.1) * 1000;
 }
 
 void measureCapacitiveSoilMoistureSensor() {
@@ -170,4 +183,32 @@ void measureUVSensor() {
     float valueDiff = uvAnalog - uvIndexLimits[i - 1];
     uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
   }
+}
+
+void measureTemperature() {
+  data.temperatureCanSat = bme_cansat.readTemperature();
+  data.temperatureExternal = bme.readTemperature();
+  data.temperatureMPU = IMU.getTemperature_C();
+}
+
+void measurePressure() {
+  data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
+  data.pressureExternal = bme.readPressure() / 100.0F;
+}
+
+void measureHumidity() {
+  data.humidityCanSat = bme_cansat.readHumidity();
+  data.humidityExternal = bme.readHumidity();
+}
+
+void measureAcceleration() {
+ data.accelerationX = IMU.getAccelX_mss();
+ data.accelerationY = IMU.getAccelY_mss();
+ data.accelerationZ = IMU.getAccelZ_mss();
+}
+
+void measureRotation() {
+  data.rotationX = IMU.getGyroX_rads() * 180 / PI;
+  data.rotationY = IMU.getGyroY_rads() * 180 / PI;
+  data.rotationZ = IMU.getGyroZ_rads() * 180 / PI;
 }
