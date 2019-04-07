@@ -67,10 +67,12 @@ messageOut data;
 
 bool isRadioOk = true;
 
+#define Serial SerialUSB
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(57600);
 
   gps.begin();
+  gps.debugPrintOn(57600);
   
   if (!bme.begin(BME280_ADRESS)) {
     Serial.println("External BME280 not found!");
@@ -89,7 +91,6 @@ void setup() {
     Serial.println("Check IMU wiring or try cycling power");
     Serial.print("Status: ");
     Serial.println(status);
-    while(1) {}
   }
 
   if(!radio.initialize(FREQUENCY, MYNODEID, NETWORKID))
@@ -134,7 +135,7 @@ void loop() {
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
 
-  delay(1000);
+  delay(350);
 }
 
 void scanGPS() {
