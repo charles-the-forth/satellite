@@ -17,7 +17,7 @@
 #define MYNODEID        1          // My node ID (0 to 255)
 #define TONODEID        2          // Destination node ID (0 to 254, 255 = broadcast)
 #define FREQUENCY       RF69_433MHZ   // Frequency set up
-#define FREQUENCYSPECIFIC 433000000  // Should be value in Hz, now 433 Mhz will be set
+#define FREQUENCYSPECIFIC 433102000  // Should be value in Hz, now 433 Mhz will be set
 #define CHIP_SELECT_PIN   43 //radio chip select
 #define INTERUP_PIN       9 //radio interrupt
 
@@ -30,11 +30,6 @@ const int TIME_OF_MEASUREMENT = 280;
 const int TIME_OF_EQUALITY = 40;
 const int TIME_OF_SLEEP = 9680;
 
-int vibrationSensorValue = 0;
-int capacitiveSoilMoistureSensorValue = 0;
-float uvSensorValue = 0;
-int lightIntesity = 0;
-
 OpenCansatGPS gps;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
@@ -42,25 +37,34 @@ BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 
 #define Serial SerialUSB
+
 MPU9250 IMU(Wire,0x68);
 int status;
 
 typedef struct
 {
-  uint16_t lightIntensity;
-  float temperatureCanSat;
+  uint16_t messageId;
   float temperatureExternal;
-  float temperatureMPU;
-  float pressureCanSat;
   float pressureExternal;
-  float humidityCanSat;
   float humidityExternal;
+  float altitudeExternal;
   float accelerationX;
   float accelerationY;
   float accelerationZ;
   float rotationX;
   float rotationY;
   float rotationZ;
+  uint16_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint8_t numberOfSatellites;
+  uint8_t latInt;
+  uint8_t lonInt;
+  uint32_t latAfterDot;
+  uint32_t lonAfterDot;
 } messageOut;
 
 messageOut data;
@@ -89,8 +93,6 @@ void setup() {
   if (status < 0) {
     Serial.println("IMU initialization unsuccessful");
     Serial.println("Check IMU wiring or try cycling power");
-    Serial.print("Status: ");
-    Serial.println(status);
   }
 
   if(!radio.initialize(FREQUENCY, MYNODEID, NETWORKID))
@@ -104,37 +106,86 @@ void setup() {
     radio.setHighPower(true);
     Serial.println("RFM69HW successful!");
   }
+
+  data.messageId = 0;
 }
 
 void loop() {
+  data.messageId++;
+
+  int lightIntensity = lightMeter.readLightLevel();
+  
+  int capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
+  
+  float uvSensorValue = measureUVSensor();
+
+  float temperatureCanSat = bme_cansat.readTemperature();
+  float temperatureMPU = IMU.getTemperature_C();
+  data.temperatureExternal = bme.readTemperature();
+
+  float airQuality = measureAirQuality();
+
+  float pressureCanSat = bme_cansat.readPressure() / 100.0F;
+  data.pressureExternal = bme.readPressure() / 100.0F;
+
+  float humidityCanSat = bme_cansat.readHumidity();
+  data.humidityExternal = bme.readHumidity();
+
+  float altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
+  data.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
+
   IMU.readSensor();
+  data.accelerationX = IMU.getAccelX_mss();
+  data.accelerationY = IMU.getAccelY_mss();
+  data.accelerationZ = IMU.getAccelZ_mss();
 
-  measureLightIntensity();
-  measureTemperature();
-  measurePressure();
-  measureHumidity();
-  measureAcceleration();
-  measureRotation();
+  data.rotationX = IMU.getGyroX_rads() * 180 / PI;
+  data.rotationY = IMU.getGyroY_rads() * 180 / PI;
+  data.rotationZ = IMU.getGyroZ_rads() * 180 / PI;
 
-  Serial.println(
-    "air\tlat\tlon\tnum\tyear\tmonth\tday\thour\tmin\tsec\tcap\tuv\tlight\tbme_can_t\tbme_can_l\tbme_can_p\tbme_can_al\tbme_t\tbme_l\tbme_p\tbme_al\tAclX\tAclY\tAclZ\tGyrX\tGyrY\tGyrZ\tMagX\tMagY\tMagZ"
-  );
-  Serial.println(
-    String(capacitiveSoilMoistureSensorValue) + "\t" + String(uvSensorValue) + "\t" + String(lightIntesity) + "\t" + String(bme_cansat.readTemperature()) + "\t\t" + String(bme_cansat.readHumidity()) + "\t\t"
-    + String(bme_cansat.readPressure() / 100.0F) + "\t\t" + String((bme_cansat.readAltitude(SEALEVELPRESSURE_HPA))) + "\t\t" + String(bme.readTemperature()) + "\t" + String(bme.readHumidity()) + "\t"
-    + String(bme.readPressure() / 100.0F) + "\t" + String(bme.readAltitude(SEALEVELPRESSURE_HPA)) +  "\t" + String(IMU.getAccelX_mss()) + "\t" + String(IMU.getAccelY_mss()) + "\t" + String(IMU.getAccelZ_mss()) + "\t"
-    + String((IMU.getGyroX_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroY_rads() * 180 / PI), 6) + "\t" + String((IMU.getGyroZ_rads() * 180 / PI), 6) + "\t" + String(IMU.getMagX_uT()) + "\t"
-    + String(IMU.getMagY_uT()) + "\t" + String(IMU.getMagZ_uT())
-  );
-
+  float magnetometerX = IMU.getMagX_uT();
+  float magnetometerY = IMU.getMagY_uT();
+  float magnetometerZ = IMU.getMagZ_uT();
+  /*
+  Serial.println("data.messageId: " + String(data.messageId));
+  Serial.println("capacitiveSoilMoistureSensorValue: " + String(capacitiveSoilMoistureSensorValue));
+  Serial.println("uvSensorValue: " + String(uvSensorValue));
+  Serial.println("lightIntensity: " + String(lightIntensity));
+  Serial.println("temperatureCanSat: " + String(temperatureCanSat));
+  Serial.println("humidityCanSat: " + String(humidityCanSat));
+  Serial.println("pressureCanSat: " + String(pressureCanSat));
+  Serial.println("altitudeCanSat: " + String(altitudeCanSat));
+  Serial.println("data.altitudeExternal: " + String(data.altitudeExternal));
+  Serial.println("data.humidityExternal: " + String(data.humidityExternal));
+  Serial.println("data.pressureExternal: " + String(data.pressureExternal));
+  Serial.println("data.altitudeExternal: " + String(data.altitudeExternal));
+  Serial.println("data.accelerationX: " + String(data.accelerationX, 6));
+  Serial.println("data.accelerationY: " + String(data.accelerationY, 6));
+  Serial.println("data.accelerationZ: " + String(data.accelerationZ, 6));
+  Serial.println("data.rotationX: " + String(data.rotationX, 6));
+  Serial.println("data.rotationY: " + String(data.rotationY, 6));
+  Serial.println("data.rotationZ: " + String(data.rotationZ, 6));
+  Serial.println("magnetometerX: " + String(magnetometerX, 6));
+  Serial.println("magnetometerY: " + String(magnetometerY, 6));
+  Serial.println("magnetometerZ: " + String(magnetometerZ, 6));
+  Serial.println("data.year: " + String(data.year));
+  Serial.println("data.month: " + String(data.month));
+  Serial.println("data.day: " + String(data.day));
+  Serial.println("data.hour: " + String(data.hour));
+  Serial.println("data.minute: " + String(data.minute));
+  Serial.println("data.second: " + String(data.second));
+  Serial.println("data.numberOfSatellites: " + String(data.numberOfSatellites));
+  Serial.println("data.latInt: " + String(data.latInt));
+  Serial.println("data.lonInt: " + String(data.lonInt));
+  Serial.println("data.latAfterDot: " + String(data.latAfterDot));
+  Serial.println("data.lonAfterDot: " + String(data.lonAfterDot));
+*/
   if(isRadioOk)
   {
-    Serial.println("Signal = " + static_cast<String>(radio.RSSI));
-    Serial.println("Light Intensity = " + static_cast<String>(data.lightIntensity));
+    //Serial.println("Signal = " + static_cast<String>(radio.RSSI));
 
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
-
   delay(350);
 }
 
@@ -142,26 +193,19 @@ void scanGPS() {
   gps.scan(350);
 }
 
-void measureLightIntensity() {
-  lightIntesity = lightMeter.readLightLevel();
-  data.lightIntensity = lightIntesity;
-}
-
-void measureAirQuality() {
+float measureAirQuality() {
   digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, LOW);
   delayMicroseconds(TIME_OF_MEASUREMENT);
   float measuredVoltage = analogRead(AIR_QUALITY_SENSOR_LED_PIN);
   delayMicroseconds(TIME_OF_EQUALITY);
   digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, HIGH);
   delayMicroseconds(TIME_OF_SLEEP);
-  float voltageConversion = measuredVoltage * (3.3 / 1024.0);
+  return measuredVoltage * (3.3 / 1024.0);
 }
 
-void measureCapacitiveSoilMoistureSensor() {
-  capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
-}
 
-void measureUVSensor() {
+float measureUVSensor() {
+  float uvSensorValue = 0;
   int uvAnalog = analogRead(UV_SENSOR_PIN);
   float uvVoltage = uvAnalog * (3300.0 / 1024.0);
   int uvIndexLimits [12] = { 50, 227, 318, 408, 503, 606, 696, 795, 881, 976, 1079, 1170};
@@ -182,34 +226,8 @@ void measureUVSensor() {
   if (i > 0) {
     float indexDiff = uvIndexLimits[i] - uvIndexLimits[i - 1];
     float valueDiff = uvAnalog - uvIndexLimits[i - 1];
-    uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
+    return uvSensorValue += (1.0 / indexDiff) * valueDiff - 1.0;
   }
-}
 
-void measureTemperature() {
-  data.temperatureCanSat = bme_cansat.readTemperature();
-  data.temperatureExternal = bme.readTemperature();
-  data.temperatureMPU = IMU.getTemperature_C();
-}
-
-void measurePressure() {
-  data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
-  data.pressureExternal = bme.readPressure() / 100.0F;
-}
-
-void measureHumidity() {
-  data.humidityCanSat = bme_cansat.readHumidity();
-  data.humidityExternal = bme.readHumidity();
-}
-
-void measureAcceleration() {
- data.accelerationX = IMU.getAccelX_mss();
- data.accelerationY = IMU.getAccelY_mss();
- data.accelerationZ = IMU.getAccelZ_mss();
-}
-
-void measureRotation() {
-  data.rotationX = IMU.getGyroX_rads() * 180 / PI;
-  data.rotationY = IMU.getGyroY_rads() * 180 / PI;
-  data.rotationZ = IMU.getGyroZ_rads() * 180 / PI;
+  return 0;
 }
