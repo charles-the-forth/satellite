@@ -56,11 +56,10 @@ typedef struct
     uint8_t minute;
     uint8_t second;
     uint8_t numberOfSatellites;
-    uint8_t latInt;
-    uint8_t lonInt;
+    uint16_t latInt;
+    uint16_t lonInt;
     uint32_t latAfterDot;
     uint32_t lonAfterDot;
-  
 } messageOut;
 
 messageOut data;
@@ -72,7 +71,7 @@ void setup() {
   Serial.begin(57600);
 
   gps.begin();
-  gps.debugPrintOn(57600);
+  //gps.debugPrintOn(57600);
   
   if (!bme.begin(BME280_ADRESS)) {
     Serial.println("External BME280 not found!");
@@ -111,9 +110,9 @@ void loop() {
 
   data.lightIntensity = lightMeter.readLightLevel();
   
-  int capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
+  uint8_t capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
 
-  uint16_t uvIndex = measureUVSensor();
+  float uvIndex = measureUVSensor();
 
   data.temperatureCanSat = bme_cansat.readTemperature();
   float temperatureMPU = IMU.getTemperature_C();
@@ -143,19 +142,36 @@ void loop() {
   float magnetometerY = IMU.getMagY_uT();
   float magnetometerZ = IMU.getMagZ_uT();
 
+  if (gps.scan(350)) {
+    data.year = gps.getYear();
+    data.month = gps.getMonth();
+    data.day = gps.getDay();
+    data.hour = gps.getHour();
+    data.minute = gps.getMinute();
+    data.second = gps.getSecond();
+    data.numberOfSatellites = gps.getNumberOfSatellites();
+    data.latInt = gps.getLatInt();
+    data.lonInt = gps.getLonInt();
+    data.latAfterDot = gps.getLatAfterDot();
+    data.lonAfterDot = gps.getLonAfterDot();
+  }
+  
   if(isRadioOk)
   {
     //Serial.println("Signal = " + static_cast<String>(radio.RSSI));
 
-    Serial.println("Altitude = " + String(data.altitudeCanSat));
+    Serial.println("Satellites: " + String(data.numberOfSatellites));
+    Serial.println("data.latInt: " + String(data.latInt));
+    Serial.println("data.lonInt: " + String(data.lonInt));
+    Serial.println("data.latAfterDot: " + String(data.latAfterDot));
+    Serial.println("data.lonAfterDot: " + String(data.lonAfterDot));
+    Serial.println("data.hour: " + String(data.hour));
+    Serial.println("data.minute: " + String(data.minute));
+    Serial.println("data.second: " + String(data.second));
 
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
   delay(350);
-}
-
-void scanGPS() {
-  gps.scan(350);
 }
 
 float measureAirQuality() {
