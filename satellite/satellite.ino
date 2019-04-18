@@ -121,9 +121,9 @@ void setup() {
     file.print("message;light;capacity;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;airQuality;pressCanSat;pressExternal;altCanSat;");
     file.println("altExternal;accX;accY;accZ;rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot");
     file.close();
-    Serial.println("done.");
+    Serial.println("File header written.");
   } else {
-    Serial.println("error opening test.csv");
+    Serial.println("Error writing file header.");
   }
 
   data.messageId = 0;
@@ -201,7 +201,7 @@ void loop() {
     file.close();
     Serial.println("Writing was successfull.");
   } else {
-    Serial.println("error writing to SDCard.");
+    Serial.println("Error writing data.");
   }
   
   delay(350);
