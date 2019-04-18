@@ -1,6 +1,7 @@
 #include "Arduino.h"
 
 #include "Open_Cansat_GPS.h"
+#include "SDCard.h"
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -8,7 +9,6 @@
 #include <BH1750.h>
 #include <MPU9250.h>
 #include <RFM69.h>
-#include <SD.h>
 
 #define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
@@ -34,6 +34,7 @@ const int TIME_OF_EQUALITY = 40;
 const int TIME_OF_SLEEP = 9680;
 
 OpenCansatGPS gps;
+SDCard sdCard;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
 BH1750 lightMeter;
@@ -113,7 +114,7 @@ void setup() {
   }
   Serial.println("initialization done.");
 
-  csvFilename = getFilename();
+  csvFilename = sdCard.getFilename();
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
@@ -243,31 +244,4 @@ float measureUVSensor() {
   }
 
   return 0;
-}
-
-String getFilename() {
-  String filename = "000.csv";
-  File root = SD.open("/");
-  while (true) {
-    File entry = root.openNextFile();
-    String newEntryName = entry.name();
-    if (!entry || newEntryName.equals("SYSTEM~1")) {
-      break;
-    }
-    filename = newEntryName;
-    entry.close();
-  }
-
-  filename.replace(".csv", "");
-  
-  int fileNumber = filename.toInt();
-  fileNumber++;
-  if (fileNumber < 10) {
-    filename = "00" + String(fileNumber) + ".csv";
-  } else if (fileNumber < 100) {
-    filename = "0" + String(fileNumber) + ".csv";
-  } else {
-    filename = String(fileNumber) + ".csv";
-  }
-  return filename;
 }
