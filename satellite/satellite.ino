@@ -44,8 +44,11 @@ int status;
 typedef struct
 {
   uint16_t messageId;
+  float temperatureCanSat;
+  float temperatureMPU;
   float temperatureExternal;
   float pressureExternal;
+  float humidityCanSat;
   float humidityExternal;
   float altitudeExternal;
   float accelerationX;
@@ -119,8 +122,8 @@ void loop() {
   
   float uvSensorValue = measureUVSensor();
 
-  float temperatureCanSat = bme_cansat.readTemperature();
-  float temperatureMPU = IMU.getTemperature_C();
+  data.temperatureCanSat = bme_cansat.readTemperature();
+  data.temperatureMPU = IMU.getTemperature_C();
   data.temperatureExternal = bme.readTemperature();
 
   float airQuality = measureAirQuality();
@@ -128,7 +131,7 @@ void loop() {
   float pressureCanSat = bme_cansat.readPressure() / 100.0F;
   data.pressureExternal = bme.readPressure() / 100.0F;
 
-  float humidityCanSat = bme_cansat.readHumidity();
+  data.humidityCanSat = bme_cansat.readHumidity();
   data.humidityExternal = bme.readHumidity();
 
   float altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
@@ -146,40 +149,7 @@ void loop() {
   float magnetometerX = IMU.getMagX_uT();
   float magnetometerY = IMU.getMagY_uT();
   float magnetometerZ = IMU.getMagZ_uT();
-  /*
-  Serial.println("data.messageId: " + String(data.messageId));
-  Serial.println("capacitiveSoilMoistureSensorValue: " + String(capacitiveSoilMoistureSensorValue));
-  Serial.println("uvSensorValue: " + String(uvSensorValue));
-  Serial.println("lightIntensity: " + String(lightIntensity));
-  Serial.println("temperatureCanSat: " + String(temperatureCanSat));
-  Serial.println("humidityCanSat: " + String(humidityCanSat));
-  Serial.println("pressureCanSat: " + String(pressureCanSat));
-  Serial.println("altitudeCanSat: " + String(altitudeCanSat));
-  Serial.println("data.altitudeExternal: " + String(data.altitudeExternal));
-  Serial.println("data.humidityExternal: " + String(data.humidityExternal));
-  Serial.println("data.pressureExternal: " + String(data.pressureExternal));
-  Serial.println("data.altitudeExternal: " + String(data.altitudeExternal));
-  Serial.println("data.accelerationX: " + String(data.accelerationX, 6));
-  Serial.println("data.accelerationY: " + String(data.accelerationY, 6));
-  Serial.println("data.accelerationZ: " + String(data.accelerationZ, 6));
-  Serial.println("data.rotationX: " + String(data.rotationX, 6));
-  Serial.println("data.rotationY: " + String(data.rotationY, 6));
-  Serial.println("data.rotationZ: " + String(data.rotationZ, 6));
-  Serial.println("magnetometerX: " + String(magnetometerX, 6));
-  Serial.println("magnetometerY: " + String(magnetometerY, 6));
-  Serial.println("magnetometerZ: " + String(magnetometerZ, 6));
-  Serial.println("data.year: " + String(data.year));
-  Serial.println("data.month: " + String(data.month));
-  Serial.println("data.day: " + String(data.day));
-  Serial.println("data.hour: " + String(data.hour));
-  Serial.println("data.minute: " + String(data.minute));
-  Serial.println("data.second: " + String(data.second));
-  Serial.println("data.numberOfSatellites: " + String(data.numberOfSatellites));
-  Serial.println("data.latInt: " + String(data.latInt));
-  Serial.println("data.lonInt: " + String(data.lonInt));
-  Serial.println("data.latAfterDot: " + String(data.latAfterDot));
-  Serial.println("data.lonAfterDot: " + String(data.lonAfterDot));
-*/
+
   if(isRadioOk)
   {
     //Serial.println("Signal = " + static_cast<String>(radio.RSSI));
