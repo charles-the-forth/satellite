@@ -43,31 +43,24 @@ int status;
 
 typedef struct
 {
-  uint16_t messageId;
-  float temperatureCanSat;
-  float temperatureMPU;
-  float temperatureExternal;
-  float pressureExternal;
-  float humidityCanSat;
-  float humidityExternal;
-  float altitudeExternal;
-  float accelerationX;
-  float accelerationY;
-  float accelerationZ;
-  float rotationX;
-  float rotationY;
-  float rotationZ;
-  uint16_t year;
-  uint8_t month;
-  uint8_t day;
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
-  uint8_t numberOfSatellites;
-  uint8_t latInt;
-  uint8_t lonInt;
-  uint32_t latAfterDot;
-  uint32_t lonAfterDot;
+    uint16_t messageId;
+    float temperatureCanSat;
+    float pressureCanSat;
+    float humidityCanSat;
+    uint32_t lightIntensity;
+    float altitudeCanSat;
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+    uint8_t numberOfSatellites;
+    uint8_t latInt;
+    uint8_t lonInt;
+    uint32_t latAfterDot;
+    uint32_t lonAfterDot;
+  
 } messageOut;
 
 messageOut data;
@@ -116,35 +109,35 @@ void setup() {
 void loop() {
   data.messageId++;
 
-  int lightIntensity = lightMeter.readLightLevel();
+  data.lightIntensity = lightMeter.readLightLevel();
   
   int capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
-  
-  float uvSensorValue = measureUVSensor();
+
+  uint16_t uvIndex = measureUVSensor();
 
   data.temperatureCanSat = bme_cansat.readTemperature();
-  data.temperatureMPU = IMU.getTemperature_C();
-  data.temperatureExternal = bme.readTemperature();
+  float temperatureMPU = IMU.getTemperature_C();
+  float temperatureExternal = bme.readTemperature();
 
   float airQuality = measureAirQuality();
 
-  float pressureCanSat = bme_cansat.readPressure() / 100.0F;
-  data.pressureExternal = bme.readPressure() / 100.0F;
+  data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
+  float pressureExternal = bme.readPressure() / 100.0F;
 
   data.humidityCanSat = bme_cansat.readHumidity();
-  data.humidityExternal = bme.readHumidity();
+  float humidityExternal = bme.readHumidity();
 
-  float altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
-  data.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  data.altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
+  float altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
 
   IMU.readSensor();
-  data.accelerationX = IMU.getAccelX_mss();
-  data.accelerationY = IMU.getAccelY_mss();
-  data.accelerationZ = IMU.getAccelZ_mss();
+  float accelerationX = IMU.getAccelX_mss();
+  float accelerationY = IMU.getAccelY_mss();
+  float accelerationZ = IMU.getAccelZ_mss();
 
-  data.rotationX = IMU.getGyroX_rads() * 180 / PI;
-  data.rotationY = IMU.getGyroY_rads() * 180 / PI;
-  data.rotationZ = IMU.getGyroZ_rads() * 180 / PI;
+  float rotationX = IMU.getGyroX_rads() * 180 / PI;
+  float rotationY = IMU.getGyroY_rads() * 180 / PI;
+  float rotationZ = IMU.getGyroZ_rads() * 180 / PI;
 
   float magnetometerX = IMU.getMagX_uT();
   float magnetometerY = IMU.getMagY_uT();
@@ -153,6 +146,8 @@ void loop() {
   if(isRadioOk)
   {
     //Serial.println("Signal = " + static_cast<String>(radio.RSSI));
+
+    Serial.println("Altitude = " + String(data.altitudeCanSat));
 
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
