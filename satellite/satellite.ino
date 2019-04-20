@@ -9,6 +9,7 @@
 #include <BH1750.h>
 #include <MPU9250.h>
 #include <RFM69.h>
+#include <Adafruit_INA219.h>
 
 #define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
@@ -37,6 +38,7 @@ OpenCansatGPS gps;
 SDCard sdCard;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
+Adafruit_INA219 ina219(0x40);
 BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 File file;
@@ -91,6 +93,8 @@ void setup() {
   
   lightMeter.begin();
 
+  ina219.begin();
+
   status = IMU.begin();
   if (status < 0) {
     Serial.println("IMU initialization unsuccessful");
@@ -118,8 +122,8 @@ void setup() {
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
-    file.print("message;light;capacity;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;airQuality;pressCanSat;pressExternal;altCanSat;");
-    file.println("altExternal;accX;accY;accZ;rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot");
+    file.print("message;light;capacity;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;airQuality;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
+    file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load");
     file.close();
     Serial.println("File header written.");
   } else {
@@ -166,6 +170,11 @@ void loop() {
   float magnetometerY = IMU.getMagY_uT();
   float magnetometerZ = IMU.getMagZ_uT();
 
+  float voltage_shunt = ina219.getShuntVoltage_mV();
+  float voltage_bus = ina219.getBusVoltage_V();
+  float current_mA = ina219.getCurrent_mA();
+  float voltage_load = voltage_bus + (voltage_shunt / 1000);
+
   if (gps.scan(350)) {
     data.year = gps.getYear();
     data.month = gps.getMonth();
@@ -197,7 +206,8 @@ void loop() {
     file.print(String(magnetometerY) + ";" + String(magnetometerZ) + ";" + String(data.year) + ";");
     file.print(String(data.month) + ";" + String(data.day) + ";" + String(data.hour) + ";");
     file.print(String(data.minute) + ";" + String(data.second) + ";" + String(data.numberOfSatellites) + ";");
-    file.println(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot));
+    file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
+    file.println(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load));
     file.close();
     Serial.println("Writing was successfull.");
   } else {
