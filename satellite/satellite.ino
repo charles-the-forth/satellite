@@ -76,18 +76,19 @@ bool isRadioOk = true;
 String csvFilename;
 
 #define Serial SerialUSB
+bool debugLog = false;
+
 void setup() {
   Serial.begin(57600);
 
   gps.begin();
   //gps.debugPrintOn(57600);
   
-  if (!bme.begin(BME280_ADRESS)) {
+  if (!bme.begin(BME280_ADRESS) && debugLog) {
     Serial.println("External BME280 not found!");
   }
   
-  if (!bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT))
-  {
+  if (!bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT) && debugLog) {
     Serial.println("Internal BME280 not found!");
   }
   
@@ -96,7 +97,7 @@ void setup() {
   ina219.begin();
 
   status = IMU.begin();
-  if (status < 0) {
+  if (status < 0 && debugLog) {
     Serial.println("IMU initialization unsuccessful");
     Serial.println("Check IMU wiring or try cycling power");
   }
@@ -104,19 +105,24 @@ void setup() {
   if(!radio.initialize(FREQUENCY, MYNODEID, NETWORKID))
   {
     isRadioOk = false;
-    Serial.println("RFM69HW initialization failed!");
+    if (debugLog) {
+      Serial.println("RFM69HW initialization failed!"); 
+    }
   }
   else
   {
     radio.setFrequency(FREQUENCYSPECIFIC);
     radio.setHighPower(true);
-    Serial.println("RFM69HW successful!");
+    if (debugLog) {
+      Serial.println("RFM69HW successful!"); 
+    }
   }
 
-  if (!SD.begin(sd_cs_pin)) {
+  if (!SD.begin(sd_cs_pin) && debugLog) {
     Serial.println("initialization failed!");
+  } else if (debugLog) {   
+    Serial.println("initialization done."); 
   }
-  Serial.println("initialization done.");
 
   csvFilename = sdCard.getFilename();
   file = SD.open(csvFilename, FILE_WRITE);
@@ -125,8 +131,10 @@ void setup() {
     file.print("message;light;capacity;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;airQuality;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
     file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load");
     file.close();
-    Serial.println("File header written.");
-  } else {
+    if (debugLog) {     
+      Serial.println("File header written."); 
+    }
+  } else if (debugLog) {
     Serial.println("Error writing file header.");
   }
 
@@ -145,8 +153,6 @@ void loop() {
   data.temperatureCanSat = bme_cansat.readTemperature();
   float temperatureMPU = IMU.getTemperature_C();
   float temperatureExternal = bme.readTemperature();
-
-  float airQuality = measureAirQuality();
 
   data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
   float pressureExternal = bme.readPressure() / 100.0F;
@@ -175,6 +181,8 @@ void loop() {
   float current_mA = ina219.getCurrent_mA();
   float voltage_load = voltage_bus + (voltage_shunt / 1000);
 
+  float airQuality = measureAirQuality(voltage_load);
+
   if (gps.scan(350)) {
     data.year = gps.getYear();
     data.month = gps.getMonth();
@@ -194,6 +202,48 @@ void loop() {
     radio.send(TONODEID, (const void*)&data, sizeof(data));
   }
 
+  if (debugLog) {
+    Serial.println("Message id: " + String(data.messageId));
+  
+    Serial.println("Light intensity: " + String(data.lightIntensity));
+  
+    Serial.println("Capacitive soil moisture: " + String(capacitiveSoilMoistureSensorValue));
+    
+    Serial.println("UV senzor: " + String(uvIndex));
+
+    Serial.println("Temperature CanSat: " + String(data.temperatureCanSat));
+    Serial.println("Temperature MPU: " + String(temperatureMPU));
+    Serial.println("Temperature External: " + String(temperatureExternal));
+  
+    Serial.println("Pressure CanSat: " + String(data.pressureCanSat));
+    Serial.println("Pressure External: " + String(pressureExternal));
+
+    Serial.println("Humidity CanSat: " + String(data.humidityCanSat));
+    Serial.println("Humidity External: " + String(humidityExternal));
+
+    Serial.println("Altitude CanSat: " + String(data.altitudeCanSat));
+    Serial.println("Altitude External: " + String(altitudeExternal));
+
+    Serial.println("Acceleration X: " + String(accelerationX));
+    Serial.println("Acceleration Y: " + String(accelerationY));
+    Serial.println("Acceleration Z: " + String(accelerationZ));
+
+    Serial.println("Rotation X: " + String(rotationX));
+    Serial.println("Rotation Y: " + String(rotationY));
+    Serial.println("Rotation Z: " + String(rotationZ));
+
+    Serial.println("Magnetometer X: " + String(magnetometerX));
+    Serial.println("Magnetometer Y: " + String(magnetometerY));
+    Serial.println("Magnetometer Z: " + String(magnetometerZ));
+
+    Serial.println("voltage_shunt: " + String(voltage_shunt));
+    Serial.println("voltage_bus: " + String(voltage_bus));
+    Serial.println("current_mA: " + String(current_mA));
+    Serial.println("voltage_load: " + String(voltage_load));
+  
+    Serial.println("Air quality: " + String(airQuality));
+  }
+
   file = SD.open(csvFilename, FILE_WRITE);
   if (file) {
     file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(capacitiveSoilMoistureSensorValue) + ";");
@@ -209,22 +259,26 @@ void loop() {
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
     file.println(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load));
     file.close();
-    Serial.println("Writing was successfull.");
-  } else {
+
+    if (debugLog) {     
+      Serial.println("Writing was successfull."); 
+    }
+  } else if (debugLog) {
     Serial.println("Error writing data.");
   }
   
   delay(350);
 }
 
-float measureAirQuality() {
+float measureAirQuality(float voltage) {
   digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, LOW);
   delayMicroseconds(TIME_OF_MEASUREMENT);
   float measuredVoltage = analogRead(AIR_QUALITY_SENSOR_LED_PIN);
   delayMicroseconds(TIME_OF_EQUALITY);
   digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, HIGH);
   delayMicroseconds(TIME_OF_SLEEP);
-  return measuredVoltage * (3.3 / 1024.0);
+  float convertedVoltage = measuredVoltage * (voltage / 1024.0);
+  return (0.17 * convertedVoltage - 0.1) * 1000;
 }
 
 
