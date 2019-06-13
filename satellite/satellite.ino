@@ -29,11 +29,14 @@
 const int AIR_QUALITY_SENSOR_PIN = A0;
 const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A1;
 const int UV_SENSOR_PIN = A2;
+const int OXYGEN_SENSOR_PIN = A3;
 const int AIR_QUALITY_SENSOR_LED_PIN = 3;
 
 const int TIME_OF_MEASUREMENT = 280;
 const int TIME_OF_EQUALITY = 40;
 const int TIME_OF_SLEEP = 9680;
+
+const float VRefer = 5;
 
 OpenCansatGPS gps;
 SDCard sdCard;
@@ -193,6 +196,8 @@ void loop() {
 
   float humidityCO2 = airSensor.getHumidity();
 
+  float oxygenContentration = readConcentration();
+
   if (gps.scan(350)) {
     data.year = gps.getYear();
     data.month = gps.getMonth();
@@ -256,6 +261,8 @@ void loop() {
     Serial.println("CO2: " + String(co2) + " ppm");
     Serial.println("Temperature CO2: " + String(temperatureCO2, 1) + " C");
     Serial.println("Humidity CO2: " + String(humidityCO2, 1) + " %");    
+    
+    Serial.println("O2: " + String(oxygenContentration) + " %");
   }
 
   file = SD.open(csvFilename, FILE_WRITE);
@@ -296,7 +303,6 @@ float measureAirQuality(float voltage) {
   return (0.17 * convertedVoltage - 0.1) * 1000;
 }
 
-
 float measureUVSensor() {
   float uvSensorValue = 0;
   int uvAnalog = analogRead(UV_SENSOR_PIN);
@@ -323,4 +329,28 @@ float measureUVSensor() {
   }
 
   return 0;
+}
+
+float readO2Vout()
+{
+    long sum = 0;
+    for(int i=0; i<32; i++)
+    {
+        sum += analogRead(OXYGEN_SENSOR_PIN);
+    }
+
+    sum >>= 5;
+
+    float MeasuredVout = sum * (VRefer / 1023.0);
+    return MeasuredVout;
+}
+
+float readConcentration()
+{
+    float MeasuredVout = readO2Vout();
+
+    float Concentration = MeasuredVout * 0.3 / 3.3;
+    float Concentration_Percentage=Concentration*100;
+
+    return Concentration_Percentage;
 }
