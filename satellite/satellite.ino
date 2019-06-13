@@ -2,6 +2,7 @@
 
 #include "Open_Cansat_GPS.h"
 #include "SDCard.h"
+#include "SparkFun_SCD30_Arduino_Library.h"
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -42,6 +43,7 @@ Adafruit_INA219 ina219(0x40);
 BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 File file;
+SCD30 airSensor;
 
 #define Serial SerialUSB
 
@@ -76,7 +78,7 @@ bool isRadioOk = true;
 String csvFilename;
 
 #define Serial SerialUSB
-bool debugLog = false;
+bool debugLog = true;
 
 void setup() {
   Serial.begin(57600);
@@ -95,6 +97,8 @@ void setup() {
   lightMeter.begin();
 
   ina219.begin();
+
+  airSensor.begin();
 
   status = IMU.begin();
   if (status < 0 && debugLog) {
@@ -183,6 +187,12 @@ void loop() {
 
   float airQuality = measureAirQuality(voltage_load);
 
+  int co2 = airSensor.getCO2();
+
+  float temperatureCO2 = airSensor.getTemperature();
+
+  float humidityCO2 = airSensor.getHumidity();
+
   if (gps.scan(350)) {
     data.year = gps.getYear();
     data.month = gps.getMonth();
@@ -242,6 +252,10 @@ void loop() {
     Serial.println("voltage_load: " + String(voltage_load));
   
     Serial.println("Air quality: " + String(airQuality));
+    
+    Serial.println("CO2: " + String(co2) + " ppm");
+    Serial.println("Temperature CO2: " + String(temperatureCO2, 1) + " C");
+    Serial.println("Humidity CO2: " + String(humidityCO2, 1) + " %");    
   }
 
   file = SD.open(csvFilename, FILE_WRITE);
@@ -266,7 +280,8 @@ void loop() {
   } else if (debugLog) {
     Serial.println("Error writing data.");
   }
-  
+
+  Serial.println("----------------------------------------------------------");
   delay(350);
 }
 
