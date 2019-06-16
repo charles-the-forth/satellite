@@ -11,7 +11,9 @@
 #include <MPU9250.h>
 #include <RFM69.h>
 #include <Adafruit_INA219.h>
+#include <SparkFunCCS811.h>
 
+#define CCS811_ADDR 0x5B
 #define BME280_ADRESS 0x76
 #define BME280_ADDRESS_OPEN_CANSAT 0x77
 #define SEALEVELPRESSURE_HPA 1013.25
@@ -44,6 +46,7 @@ BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 File file;
 SCD30 airSensor;
+CCS811 myCCS811(CCS811_ADDR);
 
 #define Serial SerialUSB
 
@@ -54,17 +57,19 @@ typedef struct
 {
     uint16_t messageId;
     float temperatureCanSat;
+    float temperatureExternal;
     float pressureCanSat;
+    float pressureExternal;
     float humidityCanSat;
+    float humidityExternal;
     uint32_t lightIntensity;
     float altitudeCanSat;
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
+    float altitudeExternal;
     uint8_t numberOfSatellites;
+    uint16_t co2SCD30;
+    uint16_t co2CCS811;
+    uint16_t tvoc;
+    float o2Concentration;
     uint16_t latInt;
     uint16_t lonInt;
     uint32_t latAfterDot;
@@ -77,11 +82,21 @@ bool isRadioOk = true;
 
 String csvFilename;
 
+uint16_t year;
+uint8_t month;
+uint8_t day;
+uint8_t hour;
+uint8_t minute;
+uint8_t second;
+uint8_t numberOfSatellites;
+
 #define Serial SerialUSB
 bool debugLog = true;
 
 void setup() {
   Serial.begin(57600);
+
+  Wire.begin();
 
   gps.begin();
   //gps.debugPrintOn(57600);
@@ -99,6 +114,9 @@ void setup() {
   ina219.begin();
 
   airSensor.begin();
+
+  CCS811Core::status returnCode = myCCS811.begin();
+  Serial.println("CCS811 begin exited with: " + String(returnCode));
 
   status = IMU.begin();
   if (status < 0 && debugLog) {
@@ -132,8 +150,8 @@ void setup() {
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
-    file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
-    file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load");
+    file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;tempSCD30;humCanSat;humExternal;humSCD30;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
+    file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;");
     file.close();
     if (debugLog) {     
       Serial.println("File header written."); 
@@ -183,21 +201,35 @@ void loop() {
   float current_mA = ina219.getCurrent_mA();
   float voltage_load = voltage_bus + (voltage_shunt / 1000);
 
-  int co2 = airSensor.getCO2();
+  data.co2SCD30 = airSensor.getCO2();
 
-  float temperatureCO2 = airSensor.getTemperature();
+  float temperatureSCD30 = airSensor.getTemperature();
 
-  float humidityCO2 = airSensor.getHumidity();
+  float humiditySCD30 = airSensor.getHumidity();
 
-  float oxygenContentration = readConcentration();
+  data.o2Concentration = readConcentration();
+
+  if (myCCS811.dataAvailable())
+  {
+    myCCS811.readAlgorithmResults();
+   
+    data.co2CCS811 = myCCS811.getCO2();
+    data.tvoc = myCCS811.getTVOC();
+    
+    myCCS811.setEnvironmentalData(humidityExternal, temperatureExternal);
+  }
+  else if (myCCS811.checkForStatusError())
+  {
+    printSensorError();
+  }
 
   if (gps.scan(350)) {
-    data.year = gps.getYear();
-    data.month = gps.getMonth();
-    data.day = gps.getDay();
-    data.hour = gps.getHour();
-    data.minute = gps.getMinute();
-    data.second = gps.getSecond();
+    year = gps.getYear();
+    month = gps.getMonth();
+    day = gps.getDay();
+    hour = gps.getHour();
+    minute = gps.getMinute();
+    second = gps.getSecond();
     data.numberOfSatellites = gps.getNumberOfSatellites();
     data.latInt = gps.getLatInt();
     data.lonInt = gps.getLonInt();
@@ -220,12 +252,14 @@ void loop() {
     Serial.println("Temperature CanSat: " + String(data.temperatureCanSat));
     Serial.println("Temperature MPU: " + String(temperatureMPU));
     Serial.println("Temperature External: " + String(temperatureExternal));
+    Serial.println("Temperature SCD30: " + String(temperatureSCD30));
   
     Serial.println("Pressure CanSat: " + String(data.pressureCanSat));
     Serial.println("Pressure External: " + String(pressureExternal));
 
     Serial.println("Humidity CanSat: " + String(data.humidityCanSat));
     Serial.println("Humidity External: " + String(humidityExternal));
+    Serial.println("Humidity SCD30: " + String(humiditySCD30));
 
     Serial.println("Altitude CanSat: " + String(data.altitudeCanSat));
     Serial.println("Altitude External: " + String(altitudeExternal));
@@ -247,27 +281,28 @@ void loop() {
     Serial.println("current_mA: " + String(current_mA));
     Serial.println("voltage_load: " + String(voltage_load));
     
-    Serial.println("CO2: " + String(co2) + " ppm");
-    Serial.println("Temperature CO2: " + String(temperatureCO2, 1) + " C");
-    Serial.println("Humidity CO2: " + String(humidityCO2, 1) + " %");    
+    Serial.println("CO2 SCD30: " + String(data.co2SCD30) + " ppm");
+    Serial.println("CO2 CCS811: " + String(data.co2CCS811) + " ppm");
+    Serial.println("TVOC CCS811: " + String(data.tvoc) + " ppb");
     
-    Serial.println("O2: " + String(oxygenContentration) + " %");
+    Serial.println("O2: " + String(data.o2Concentration) + " %");
   }
 
   file = SD.open(csvFilename, FILE_WRITE);
   if (file) {
-    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";");
-    file.print(String(uvIndex) + ";" + String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
-    file.print(String(temperatureExternal) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";");
+    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(uvIndex) + ";");
+    file.print(String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
+    file.print(String(temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
     file.print(String(data.pressureCanSat) + ";" + String(pressureExternal) + ";");
     file.print(String(data.altitudeCanSat) + ";" + String(altitudeExternal) + ";" + String(accelerationX)+ ";");
     file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
     file.print(String(rotationY) + ";" + String(rotationZ) + ";" + String(magnetometerX) + ";");
-    file.print(String(magnetometerY) + ";" + String(magnetometerZ) + ";" + String(data.year) + ";");
-    file.print(String(data.month) + ";" + String(data.day) + ";" + String(data.hour) + ";");
-    file.print(String(data.minute) + ";" + String(data.second) + ";" + String(data.numberOfSatellites) + ";");
+    file.print(String(magnetometerY) + ";" + String(magnetometerZ) + ";" + String(year) + ";");
+    file.print(String(month) + ";" + String(day) + ";" + String(hour) + ";");
+    file.print(String(minute) + ";" + String(second) + ";" + String(numberOfSatellites) + ";");
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
-    file.println(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load));
+    file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
+    file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration));
     file.close();
 
     if (debugLog) {     
@@ -331,4 +366,25 @@ float readConcentration()
     float Concentration_Percentage=Concentration*100;
 
     return Concentration_Percentage;
+}
+
+void printSensorError()
+{
+  uint8_t error = myCCS811.getErrorRegister();
+
+  if ( error == 0xFF ) //comm error
+  {
+    Serial.println("Failed to get ERROR_ID register.");
+  }
+  else
+  {
+    Serial.print("Error: ");
+    if (error & 1 << 5) Serial.print("HeaterSupply");
+    if (error & 1 << 4) Serial.print("HeaterFault");
+    if (error & 1 << 3) Serial.print("MaxResistance");
+    if (error & 1 << 2) Serial.print("MeasModeInvalid");
+    if (error & 1 << 1) Serial.print("ReadRegInvalid");
+    if (error & 1 << 0) Serial.print("MsgInvalid");
+    Serial.println();
+  }
 }
