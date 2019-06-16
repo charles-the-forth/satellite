@@ -69,7 +69,6 @@ typedef struct
     uint32_t lightIntensity;
     float altitudeCanSat;
     float altitudeExternal;
-    uint8_t numberOfSatellites;
     uint16_t co2SCD30;
     uint16_t co2CCS811;
     uint16_t tvoc;
@@ -78,6 +77,7 @@ typedef struct
     uint16_t lonInt;
     uint32_t latAfterDot;
     uint32_t lonAfterDot;
+    uint8_t numberOfSatellites;
 } messageOut;
 
 messageOut data;
@@ -92,7 +92,6 @@ uint8_t day;
 uint8_t hour;
 uint8_t minute;
 uint8_t second;
-uint8_t numberOfSatellites;
 
 #define Serial SerialUSB
 bool debugLog = true;
@@ -176,16 +175,16 @@ void loop() {data.messageId++;
 
   data.temperatureCanSat = bme_cansat.readTemperature();
   float temperatureMPU = IMU.getTemperature_C();
-  float temperatureExternal = bme.readTemperature();
+  data.temperatureExternal = bme.readTemperature();
 
   data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
-  float pressureExternal = bme.readPressure() / 100.0F;
+  data.pressureExternal = bme.readPressure() / 100.0F;
 
   data.humidityCanSat = bme_cansat.readHumidity();
-  float humidityExternal = bme.readHumidity();
+  data.humidityExternal = bme.readHumidity();
 
   data.altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
-  float altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  data.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
 
   IMU.readSensor();
   float accelerationX = IMU.getAccelX_mss();
@@ -301,14 +300,14 @@ void loop() {data.messageId++;
   if (file) {
     file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(uvIndex) + ";");
     file.print(String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
-    file.print(String(temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
-    file.print(String(data.pressureCanSat) + ";" + String(pressureExternal) + ";");
-    file.print(String(data.altitudeCanSat) + ";" + String(altitudeExternal) + ";" + String(accelerationX)+ ";");
+    file.print(String(data.temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
+    file.print(String(data.pressureCanSat) + ";" + String(data.pressureExternal) + ";");
+    file.print(String(data.altitudeCanSat) + ";" + String(data.altitudeExternal) + ";" + String(accelerationX)+ ";");
     file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
     file.print(String(rotationY) + ";" + String(rotationZ) + ";" + String(magnetometerX) + ";");
     file.print(String(magnetometerY) + ";" + String(magnetometerZ) + ";" + String(year) + ";");
     file.print(String(month) + ";" + String(day) + ";" + String(hour) + ";");
-    file.print(String(minute) + ";" + String(second) + ";" + String(numberOfSatellites) + ";");
+    file.print(String(minute) + ";" + String(second) + ";" + String(data.numberOfSatellites) + ";");
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
     file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
     file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration));
