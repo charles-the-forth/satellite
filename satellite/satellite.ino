@@ -12,6 +12,7 @@
 #include <RFM69.h>
 #include <Adafruit_INA219.h>
 #include <SparkFunCCS811.h>
+#include <Adafruit_MLX90614.h>
 
 #define CCS811_ADDR 0x5B
 #define BME280_ADRESS 0x76
@@ -47,6 +48,7 @@ RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 File file;
 SCD30 airSensor;
 CCS811 myCCS811(CCS811_ADDR);
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 #define Serial SerialUSB
 
@@ -58,6 +60,8 @@ typedef struct
     uint16_t messageId;
     float temperatureCanSat;
     float temperatureExternal;
+    double ambientTemp;
+    double objectTemp;
     float pressureCanSat;
     float pressureExternal;
     float humidityCanSat;
@@ -146,11 +150,12 @@ void setup() {
     Serial.println("initialization done."); 
   }
 
+  mlx.begin();
   csvFilename = sdCard.getFilename();
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
-    file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;tempSCD30;humCanSat;humExternal;humSCD30;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
+    file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;tempSCD30;ambientTemp;objectTemp;humCanSat;humExternal;humSCD30;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
     file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;");
     file.close();
     if (debugLog) {     
@@ -163,8 +168,7 @@ void setup() {
   data.messageId = 0;
 }
 
-void loop() {
-  data.messageId++;
+void loop() {data.messageId++;
 
   data.lightIntensity = lightMeter.readLightLevel();
   
@@ -223,6 +227,9 @@ void loop() {
     printSensorError();
   }
 
+  data.ambientTemp = mlx.readAmbientTempC();
+  data.objectTemp = mlx.readObjectTempC();
+
   if (gps.scan(350)) {
     year = gps.getYear();
     month = gps.getMonth();
@@ -253,6 +260,8 @@ void loop() {
     Serial.println("Temperature MPU: " + String(temperatureMPU));
     Serial.println("Temperature External: " + String(temperatureExternal));
     Serial.println("Temperature SCD30: " + String(temperatureSCD30));
+    Serial.println("Ambient temperature: " + String(data.ambientTemp));
+    Serial.println("Object temperature: " + String(data.objectTemp));
   
     Serial.println("Pressure CanSat: " + String(data.pressureCanSat));
     Serial.println("Pressure External: " + String(pressureExternal));
@@ -292,7 +301,7 @@ void loop() {
   if (file) {
     file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(uvIndex) + ";");
     file.print(String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
-    file.print(String(temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
+    file.print(String(temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
     file.print(String(data.pressureCanSat) + ";" + String(pressureExternal) + ";");
     file.print(String(data.altitudeCanSat) + ";" + String(altitudeExternal) + ";" + String(accelerationX)+ ";");
     file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
