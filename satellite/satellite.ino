@@ -26,11 +26,8 @@
 #define INTERUP_PIN       9
 #define sd_cs_pin 35
 
-const int AIR_QUALITY_SENSOR_PIN = A0;
-const int CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN = A1;
 const int UV_SENSOR_PIN = A2;
 const int OXYGEN_SENSOR_PIN = A3;
-const int AIR_QUALITY_SENSOR_LED_PIN = 3;
 
 const int TIME_OF_MEASUREMENT = 280;
 const int TIME_OF_EQUALITY = 40;
@@ -135,7 +132,7 @@ void setup() {
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
-    file.print("message;light;capacity;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;airQuality;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
+    file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;humCanSat;humExternal;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
     file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load");
     file.close();
     if (debugLog) {     
@@ -153,8 +150,6 @@ void loop() {
 
   data.lightIntensity = lightMeter.readLightLevel();
   
-  uint8_t capacitiveSoilMoistureSensorValue = analogRead(CAPACITIVE_SOIL_MOISTURE_SENSOR_PIN);
-
   float uvIndex = measureUVSensor();
 
   data.temperatureCanSat = bme_cansat.readTemperature();
@@ -188,8 +183,6 @@ void loop() {
   float current_mA = ina219.getCurrent_mA();
   float voltage_load = voltage_bus + (voltage_shunt / 1000);
 
-  float airQuality = measureAirQuality(voltage_load);
-
   int co2 = airSensor.getCO2();
 
   float temperatureCO2 = airSensor.getTemperature();
@@ -221,8 +214,6 @@ void loop() {
     Serial.println("Message id: " + String(data.messageId));
   
     Serial.println("Light intensity: " + String(data.lightIntensity));
-  
-    Serial.println("Capacitive soil moisture: " + String(capacitiveSoilMoistureSensorValue));
     
     Serial.println("UV senzor: " + String(uvIndex));
 
@@ -255,8 +246,6 @@ void loop() {
     Serial.println("voltage_bus: " + String(voltage_bus));
     Serial.println("current_mA: " + String(current_mA));
     Serial.println("voltage_load: " + String(voltage_load));
-  
-    Serial.println("Air quality: " + String(airQuality));
     
     Serial.println("CO2: " + String(co2) + " ppm");
     Serial.println("Temperature CO2: " + String(temperatureCO2, 1) + " C");
@@ -267,10 +256,10 @@ void loop() {
 
   file = SD.open(csvFilename, FILE_WRITE);
   if (file) {
-    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(capacitiveSoilMoistureSensorValue) + ";");
+    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";");
     file.print(String(uvIndex) + ";" + String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
     file.print(String(temperatureExternal) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";");
-    file.print(String(airQuality) + ";" + String(data.pressureCanSat) + ";" + String(pressureExternal) + ";");
+    file.print(String(data.pressureCanSat) + ";" + String(pressureExternal) + ";");
     file.print(String(data.altitudeCanSat) + ";" + String(altitudeExternal) + ";" + String(accelerationX)+ ";");
     file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
     file.print(String(rotationY) + ";" + String(rotationZ) + ";" + String(magnetometerX) + ";");
@@ -290,17 +279,6 @@ void loop() {
 
   Serial.println("----------------------------------------------------------");
   delay(350);
-}
-
-float measureAirQuality(float voltage) {
-  digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, LOW);
-  delayMicroseconds(TIME_OF_MEASUREMENT);
-  float measuredVoltage = analogRead(AIR_QUALITY_SENSOR_LED_PIN);
-  delayMicroseconds(TIME_OF_EQUALITY);
-  digitalWrite(AIR_QUALITY_SENSOR_LED_PIN, HIGH);
-  delayMicroseconds(TIME_OF_SLEEP);
-  float convertedVoltage = measuredVoltage * (voltage / 1024.0);
-  return (0.17 * convertedVoltage - 0.1) * 1000;
 }
 
 float measureUVSensor() {
@@ -334,7 +312,7 @@ float measureUVSensor() {
 float readO2Vout()
 {
     long sum = 0;
-    for(int i=0; i<32; i++)
+    for(int i = 0; i<32; i++)
     {
         sum += analogRead(OXYGEN_SENSOR_PIN);
     }
