@@ -1,11 +1,11 @@
 #include "Arduino.h"
 
 #include "Open_Cansat_GPS.h"
-#include "SDCard.h"
 #include "SparkFun_SCD30_Arduino_Library.h"
 #include "SparkFun_AS7265X.h"
 #include <Wire.h>
 #include <SPI.h>
+#include <SD.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <BH1750.h>
@@ -42,7 +42,6 @@ const int TIME_OF_SLEEP = 9680;
 const float VRefer = 5;
 
 OpenCansatGPS gps;
-SDCard sdCard;
 Adafruit_BME280 bme;
 Adafruit_BME280 bme_cansat;
 Adafruit_INA219 ina219(0x40);
@@ -119,7 +118,7 @@ messageOut data;
 
 bool isRadioOk = true;
 
-String csvFilename;
+String csvFilename = "result.csv";
 
 uint16_t year;
 uint8_t month;
@@ -195,8 +194,7 @@ void setup() {
   {
     Serial.println("Spectroscope does not appear to be connected.");
   }*/
-  
-  csvFilename = sdCard.getFilename();
+
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
@@ -215,7 +213,8 @@ void setup() {
   data.messageId = 0;
 }
 
-void loop() {data.messageId++;
+void loop() {
+  data.messageId++;
 
   digitalWrite(D13_led_pin, LOW);
 
@@ -400,8 +399,8 @@ void loop() {data.messageId++;
     file.print(String(minute) + ";" + String(second) + ";" + String(data.numberOfSatellites) + ";");
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
     file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
-    file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration));
-    file.println(String(data.a) + ";" + String(data.b) + ";" + String(data.c) + ";" + String(data.d) + ";" + String(data.e) + ";" + String(data.f) + ";" + String(data.g) + ";" + String(data.h) + ";" + String(data.k) + ";" + String(data.l) + ";" + String(data.r) + ";" + String(data.s) + ";" + String(data.t) + ";" + String(data.u) + ";" + String(data.v) + ";" + String(data.w));
+    file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration) + ";");
+    file.println(String(data.a) + ";" + String(data.b) + ";" + String(data.c) + ";" + String(data.d) + ";" + String(data.e) + ";" + String(data.f) + ";" + String(data.g) + ";" + String(data.h) + ";" + String(data.i) + ";" + String(data.j) + ";" + String(data.k) + ";" + String(data.l) + ";" + String(data.r) + ";" + String(data.s) + ";" + String(data.t) + ";" + String(data.u) + ";" + String(data.v) + ";" + String(data.w));
     file.close();
 
     if (debugLog) {     
