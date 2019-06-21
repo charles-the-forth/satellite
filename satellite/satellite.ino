@@ -82,6 +82,37 @@ typedef struct
     uint32_t latAfterDot;
     uint32_t lonAfterDot;
     uint8_t numberOfSatellites;
+    float uvIndex;
+    float temperatureMPU;
+    float temperatureSCD30;
+    float humiditySCD30;
+    float accelerationX;
+    float accelerationY;
+    float accelerationZ;
+    float rotationX;
+    float rotationY;
+    float rotationZ;
+    float magnetometerX;
+    float magnetometerY;
+    float magnetometerZ;
+    float a;
+    float b;
+    float c;
+    float d;
+    float e;
+    float f;
+    float g;
+    float h;
+    float i;
+    float j;
+    float k;
+    float l;
+    float r;
+    float s;
+    float t;
+    float u;
+    float v;
+    float w;
 } messageOut;
 
 messageOut data;
@@ -96,8 +127,6 @@ uint8_t day;
 uint8_t hour;
 uint8_t minute;
 uint8_t second;
-
-float a, b, c, d, e, f, g, h, i, j, k, l, r, s, t, u, v, w;
 
 #define Serial SerialUSB
 bool debugLog = true;
@@ -192,10 +221,10 @@ void loop() {data.messageId++;
 
   data.lightIntensity = lightMeter.readLightLevel();
   
-  float uvIndex = measureUVSensor();
+  data.uvIndex = measureUVSensor();
 
   data.temperatureCanSat = bme_cansat.readTemperature();
-  float temperatureMPU = IMU.getTemperature_C();
+  data.temperatureMPU = IMU.getTemperature_C();
   data.temperatureExternal = bme.readTemperature();
 
   data.pressureCanSat = bme_cansat.readPressure() / 100.0F;
@@ -208,17 +237,17 @@ void loop() {data.messageId++;
   data.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
 
   IMU.readSensor();
-  float accelerationX = IMU.getAccelX_mss();
-  float accelerationY = IMU.getAccelY_mss();
-  float accelerationZ = IMU.getAccelZ_mss();
+  data.accelerationX = IMU.getAccelX_mss();
+  data.accelerationY = IMU.getAccelY_mss();
+  data.accelerationZ = IMU.getAccelZ_mss();
 
-  float rotationX = IMU.getGyroX_rads() * 180 / PI;
-  float rotationY = IMU.getGyroY_rads() * 180 / PI;
-  float rotationZ = IMU.getGyroZ_rads() * 180 / PI;
+  data.rotationX = IMU.getGyroX_rads() * 180 / PI;
+  data.rotationY = IMU.getGyroY_rads() * 180 / PI;
+  data.rotationZ = IMU.getGyroZ_rads() * 180 / PI;
 
-  float magnetometerX = IMU.getMagX_uT();
-  float magnetometerY = IMU.getMagY_uT();
-  float magnetometerZ = IMU.getMagZ_uT();
+  data.magnetometerX = IMU.getMagX_uT();
+  data.magnetometerY = IMU.getMagY_uT();
+  data.magnetometerZ = IMU.getMagZ_uT();
 
   float voltage_shunt = ina219.getShuntVoltage_mV();
   float voltage_bus = ina219.getBusVoltage_V();
@@ -227,9 +256,9 @@ void loop() {data.messageId++;
 
   data.co2SCD30 = airSensor.getCO2();
 
-  float temperatureSCD30 = airSensor.getTemperature();
+  data.temperatureSCD30 = airSensor.getTemperature();
 
-  float humiditySCD30 = airSensor.getHumidity();
+  data.humiditySCD30 = airSensor.getHumidity();
 
   data.o2Concentration = readConcentration();
 
@@ -252,24 +281,24 @@ void loop() {data.messageId++;
 
   //spectroscope.takeMeasurements();
   
-  /*a = spectroscope.getCalibratedA();
-  b = spectroscope.getCalibratedB();
-  c = spectroscope.getCalibratedC();
-  d = spectroscope.getCalibratedD();
-  e = spectroscope.getCalibratedE();
-  f = spectroscope.getCalibratedF();
-  g = spectroscope.getCalibratedG();
-  h = spectroscope.getCalibratedH();
-  i = spectroscope.getCalibratedI();
-  j = spectroscope.getCalibratedJ();
-  k = spectroscope.getCalibratedK();
-  l = spectroscope.getCalibratedL();
-  r = spectroscope.getCalibratedR();
-  s = spectroscope.getCalibratedS();
-  t = spectroscope.getCalibratedT();
-  u = spectroscope.getCalibratedU();
-  v = spectroscope.getCalibratedV();
-  w = spectroscope.getCalibratedW();*/
+  /*data.a = spectroscope.getCalibratedA();
+  data.b = spectroscope.getCalibratedB();
+  data.c = spectroscope.getCalibratedC();
+  data.d = spectroscope.getCalibratedD();
+  data.e = spectroscope.getCalibratedE();
+  data.f = spectroscope.getCalibratedF();
+  data.g = spectroscope.getCalibratedG();
+  data.h = spectroscope.getCalibratedH();
+  data.i = spectroscope.getCalibratedI();
+  data.j = spectroscope.getCalibratedJ();
+  data.k = spectroscope.getCalibratedK();
+  data.l = spectroscope.getCalibratedL();
+  data.r = spectroscope.getCalibratedR();
+  data.s = spectroscope.getCalibratedS();
+  data.t = spectroscope.getCalibratedT();
+  data.u = spectroscope.getCalibratedU();
+  data.v = spectroscope.getCalibratedV();
+  data.w = spectroscope.getCalibratedW();*/
   
   if (gps.scan(350)) {
     year = gps.getYear();
@@ -295,12 +324,12 @@ void loop() {data.messageId++;
   
     Serial.println("Light intensity: " + String(data.lightIntensity));
     
-    Serial.println("UV senzor: " + String(uvIndex));
+    Serial.println("UV senzor: " + String(data.uvIndex));
 
     Serial.println("Temperature CanSat: " + String(data.temperatureCanSat));
-    Serial.println("Temperature MPU: " + String(temperatureMPU));
+    Serial.println("Temperature MPU: " + String(data.temperatureMPU));
     Serial.println("Temperature External: " + String(data.temperatureExternal));
-    Serial.println("Temperature SCD30: " + String(temperatureSCD30));
+    Serial.println("Temperature SCD30: " + String(data.temperatureSCD30));
     Serial.println("Ambient temperature: " + String(data.ambientTemp));
     Serial.println("Object temperature: " + String(data.objectTemp));
   
@@ -309,22 +338,22 @@ void loop() {data.messageId++;
 
     Serial.println("Humidity CanSat: " + String(data.humidityCanSat));
     Serial.println("Humidity External: " + String(data.humidityExternal));
-    Serial.println("Humidity SCD30: " + String(humiditySCD30));
+    Serial.println("Humidity SCD30: " + String(data.humiditySCD30));
 
     Serial.println("Altitude CanSat: " + String(data.altitudeCanSat));
     Serial.println("Altitude External: " + String(data.altitudeExternal));
 
-    Serial.println("Acceleration X: " + String(accelerationX));
-    Serial.println("Acceleration Y: " + String(accelerationY));
-    Serial.println("Acceleration Z: " + String(accelerationZ));
+    Serial.println("Acceleration X: " + String(data.accelerationX));
+    Serial.println("Acceleration Y: " + String(data.accelerationY));
+    Serial.println("Acceleration Z: " + String(data.accelerationZ));
 
-    Serial.println("Rotation X: " + String(rotationX));
-    Serial.println("Rotation Y: " + String(rotationY));
-    Serial.println("Rotation Z: " + String(rotationZ));
+    Serial.println("Rotation X: " + String(data.rotationX));
+    Serial.println("Rotation Y: " + String(data.rotationY));
+    Serial.println("Rotation Z: " + String(data.rotationZ));
 
-    Serial.println("Magnetometer X: " + String(magnetometerX));
-    Serial.println("Magnetometer Y: " + String(magnetometerY));
-    Serial.println("Magnetometer Z: " + String(magnetometerZ));
+    Serial.println("Magnetometer X: " + String(data.magnetometerX));
+    Serial.println("Magnetometer Y: " + String(data.magnetometerY));
+    Serial.println("Magnetometer Z: " + String(data.magnetometerZ));
 
     Serial.println("voltage_shunt: " + String(voltage_shunt));
     Serial.println("voltage_bus: " + String(voltage_bus));
@@ -337,42 +366,42 @@ void loop() {data.messageId++;
     
     Serial.println("O2: " + String(data.o2Concentration) + " %");
 
-    Serial.println("A: " + String(a));
-    Serial.println("B: " + String(b));
-    Serial.println("C: " + String(c));
-    Serial.println("D: " + String(d));
-    Serial.println("E: " + String(e));
-    Serial.println("F: " + String(f));
-    Serial.println("G: " + String(g));
-    Serial.println("H: " + String(h));
-    Serial.println("I: " + String(i));
-    Serial.println("J: " + String(j));
-    Serial.println("K: " + String(k));
-    Serial.println("L: " + String(l));
-    Serial.println("R: " + String(r));
-    Serial.println("S: " + String(s));
-    Serial.println("T: " + String(t));
-    Serial.println("U: " + String(u));
-    Serial.println("V: " + String(v));
-    Serial.println("W: " + String(w));
+    Serial.println("A: " + String(data.a));
+    Serial.println("B: " + String(data.b));
+    Serial.println("C: " + String(data.c));
+    Serial.println("D: " + String(data.d));
+    Serial.println("E: " + String(data.e));
+    Serial.println("F: " + String(data.f));
+    Serial.println("G: " + String(data.g));
+    Serial.println("H: " + String(data.h));
+    Serial.println("I: " + String(data.i));
+    Serial.println("J: " + String(data.j));
+    Serial.println("K: " + String(data.k));
+    Serial.println("L: " + String(data.l));
+    Serial.println("R: " + String(data.r));
+    Serial.println("S: " + String(data.s));
+    Serial.println("T: " + String(data.t));
+    Serial.println("U: " + String(data.u));
+    Serial.println("V: " + String(data.v));
+    Serial.println("W: " + String(data.w));
   }
 
   file = SD.open(csvFilename, FILE_WRITE);
   if (file) {
-    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(uvIndex) + ";");
-    file.print(String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
-    file.print(String(data.temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(data.humidityExternal) + ";" + String(humiditySCD30) + ";");
+    file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(data.uvIndex) + ";");
+    file.print(String(data.temperatureCanSat) + ";" + String(data.temperatureMPU) + ";");
+    file.print(String(data.temperatureExternal) + ";" + String(data.temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(data.humidityExternal) + ";" + String(data.humiditySCD30) + ";");
     file.print(String(data.pressureCanSat) + ";" + String(data.pressureExternal) + ";");
-    file.print(String(data.altitudeCanSat) + ";" + String(data.altitudeExternal) + ";" + String(accelerationX)+ ";");
-    file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
-    file.print(String(rotationY) + ";" + String(rotationZ) + ";" + String(magnetometerX) + ";");
-    file.print(String(magnetometerY) + ";" + String(magnetometerZ) + ";" + String(year) + ";");
+    file.print(String(data.altitudeCanSat) + ";" + String(data.altitudeExternal) + ";" + String(data.accelerationX)+ ";");
+    file.print(String(data.accelerationY) + ";" + String(data.accelerationZ) + ";" + String(data.rotationX) + ";");
+    file.print(String(data.rotationY) + ";" + String(data.rotationZ) + ";" + String(data.magnetometerX) + ";");
+    file.print(String(data.magnetometerY) + ";" + String(data.magnetometerZ) + ";" + String(year) + ";");
     file.print(String(month) + ";" + String(day) + ";" + String(hour) + ";");
     file.print(String(minute) + ";" + String(second) + ";" + String(data.numberOfSatellites) + ";");
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
     file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
     file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration));
-    file.println(String(a) + ";" + String(b) + ";" + String(c) + ";" + String(d) + ";" + String(e) + ";" + String(f) + ";" + String(g) + ";" + String(h) + ";" + String(k) + ";" + String(l) + ";" + String(r) + ";" + String(s) + ";" + String(t) + ";" + String(u) + ";" + String(v) + ";" + String(w));
+    file.println(String(data.a) + ";" + String(data.b) + ";" + String(data.c) + ";" + String(data.d) + ";" + String(data.e) + ";" + String(data.f) + ";" + String(data.g) + ";" + String(data.h) + ";" + String(data.k) + ";" + String(data.l) + ";" + String(data.r) + ";" + String(data.s) + ";" + String(data.t) + ";" + String(data.u) + ";" + String(data.v) + ";" + String(data.w));
     file.close();
 
     if (debugLog) {     
