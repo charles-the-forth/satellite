@@ -3,6 +3,7 @@
 #include "Open_Cansat_GPS.h"
 #include "SDCard.h"
 #include "SparkFun_SCD30_Arduino_Library.h"
+#include "SparkFun_AS7265X.h"
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -24,10 +25,12 @@
 #define MYNODEID        1
 #define TONODEID        2
 #define FREQUENCY       RF69_433MHZ
-#define FREQUENCYSPECIFIC 433102000
+#define FREQUENCYSPECIFIC 443000000
 #define CHIP_SELECT_PIN   43
 #define INTERUP_PIN       9
 #define sd_cs_pin 35
+
+#define D13_led_pin 42
 
 const int UV_SENSOR_PIN = A2;
 const int OXYGEN_SENSOR_PIN = A3;
@@ -49,6 +52,7 @@ File file;
 SCD30 airSensor;
 CCS811 myCCS811(CCS811_ADDR);
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+//AS7265X spectroscope;
 
 #define Serial SerialUSB
 
@@ -93,11 +97,15 @@ uint8_t hour;
 uint8_t minute;
 uint8_t second;
 
+float a, b, c, d, e, f, g, h, i, j, k, l, r, s, t, u, v, w;
+
 #define Serial SerialUSB
 bool debugLog = true;
 
 void setup() {
   Serial.begin(57600);
+
+  Serial.println("log!");
 
   Wire.begin();
 
@@ -127,8 +135,10 @@ void setup() {
     Serial.println("Check IMU wiring or try cycling power");
   }
 
+  Serial.println("FREQUENCY");
   if(!radio.initialize(FREQUENCY, MYNODEID, NETWORKID))
   {
+    Serial.println("init");
     isRadioOk = false;
     if (debugLog) {
       Serial.println("RFM69HW initialization failed!"); 
@@ -136,6 +146,7 @@ void setup() {
   }
   else
   {
+    Serial.println("error");
     radio.setFrequency(FREQUENCYSPECIFIC);
     radio.setHighPower(true);
     if (debugLog) {
@@ -150,12 +161,18 @@ void setup() {
   }
 
   mlx.begin();
+
+  /*if(spectroscope.begin() == false)
+  {
+    Serial.println("Spectroscope does not appear to be connected.");
+  }*/
+  
   csvFilename = sdCard.getFilename();
   file = SD.open(csvFilename, FILE_WRITE);
 
   if (file) {
     file.print("message;light;uvIndex;tempCanSat;tempMPU;tempExternal;tempSCD30;ambientTemp;objectTemp;humCanSat;humExternal;humSCD30;pressCanSat;pressExternal;altCanSat;altExternal;accX;accY;accZ;");
-    file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;");
+    file.println("rotX;rotY;rotZ;magX;magY;magZ;year;month;day;hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;lonAfterDot;voltage_shunt;voltage_bus;current_mA;voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;a;b;c;d;e;f;g;h;i;j;k;l;r;s;t;u;v;w;");
     file.close();
     if (debugLog) {     
       Serial.println("File header written."); 
@@ -164,10 +181,14 @@ void setup() {
     Serial.println("Error writing file header.");
   }
 
+  pinMode(D13_led_pin, OUTPUT);
+
   data.messageId = 0;
 }
 
 void loop() {data.messageId++;
+
+  digitalWrite(D13_led_pin, LOW);
 
   data.lightIntensity = lightMeter.readLightLevel();
   
@@ -219,7 +240,7 @@ void loop() {data.messageId++;
     data.co2CCS811 = myCCS811.getCO2();
     data.tvoc = myCCS811.getTVOC();
     
-    myCCS811.setEnvironmentalData(humidityExternal, temperatureExternal);
+    myCCS811.setEnvironmentalData(data.humidityExternal, data.temperatureExternal);
   }
   else if (myCCS811.checkForStatusError())
   {
@@ -229,6 +250,27 @@ void loop() {data.messageId++;
   data.ambientTemp = mlx.readAmbientTempC();
   data.objectTemp = mlx.readObjectTempC();
 
+  //spectroscope.takeMeasurements();
+  
+  /*a = spectroscope.getCalibratedA();
+  b = spectroscope.getCalibratedB();
+  c = spectroscope.getCalibratedC();
+  d = spectroscope.getCalibratedD();
+  e = spectroscope.getCalibratedE();
+  f = spectroscope.getCalibratedF();
+  g = spectroscope.getCalibratedG();
+  h = spectroscope.getCalibratedH();
+  i = spectroscope.getCalibratedI();
+  j = spectroscope.getCalibratedJ();
+  k = spectroscope.getCalibratedK();
+  l = spectroscope.getCalibratedL();
+  r = spectroscope.getCalibratedR();
+  s = spectroscope.getCalibratedS();
+  t = spectroscope.getCalibratedT();
+  u = spectroscope.getCalibratedU();
+  v = spectroscope.getCalibratedV();
+  w = spectroscope.getCalibratedW();*/
+  
   if (gps.scan(350)) {
     year = gps.getYear();
     month = gps.getMonth();
@@ -257,20 +299,20 @@ void loop() {data.messageId++;
 
     Serial.println("Temperature CanSat: " + String(data.temperatureCanSat));
     Serial.println("Temperature MPU: " + String(temperatureMPU));
-    Serial.println("Temperature External: " + String(temperatureExternal));
+    Serial.println("Temperature External: " + String(data.temperatureExternal));
     Serial.println("Temperature SCD30: " + String(temperatureSCD30));
     Serial.println("Ambient temperature: " + String(data.ambientTemp));
     Serial.println("Object temperature: " + String(data.objectTemp));
   
     Serial.println("Pressure CanSat: " + String(data.pressureCanSat));
-    Serial.println("Pressure External: " + String(pressureExternal));
+    Serial.println("Pressure External: " + String(data.pressureExternal));
 
     Serial.println("Humidity CanSat: " + String(data.humidityCanSat));
-    Serial.println("Humidity External: " + String(humidityExternal));
+    Serial.println("Humidity External: " + String(data.humidityExternal));
     Serial.println("Humidity SCD30: " + String(humiditySCD30));
 
     Serial.println("Altitude CanSat: " + String(data.altitudeCanSat));
-    Serial.println("Altitude External: " + String(altitudeExternal));
+    Serial.println("Altitude External: " + String(data.altitudeExternal));
 
     Serial.println("Acceleration X: " + String(accelerationX));
     Serial.println("Acceleration Y: " + String(accelerationY));
@@ -294,13 +336,32 @@ void loop() {data.messageId++;
     Serial.println("TVOC CCS811: " + String(data.tvoc) + " ppb");
     
     Serial.println("O2: " + String(data.o2Concentration) + " %");
+
+    Serial.println("A: " + String(a));
+    Serial.println("B: " + String(b));
+    Serial.println("C: " + String(c));
+    Serial.println("D: " + String(d));
+    Serial.println("E: " + String(e));
+    Serial.println("F: " + String(f));
+    Serial.println("G: " + String(g));
+    Serial.println("H: " + String(h));
+    Serial.println("I: " + String(i));
+    Serial.println("J: " + String(j));
+    Serial.println("K: " + String(k));
+    Serial.println("L: " + String(l));
+    Serial.println("R: " + String(r));
+    Serial.println("S: " + String(s));
+    Serial.println("T: " + String(t));
+    Serial.println("U: " + String(u));
+    Serial.println("V: " + String(v));
+    Serial.println("W: " + String(w));
   }
 
   file = SD.open(csvFilename, FILE_WRITE);
   if (file) {
     file.print(String(data.messageId) + ";" + String(data.lightIntensity) + ";" + String(uvIndex) + ";");
     file.print(String(data.temperatureCanSat) + ";" + String(temperatureMPU) + ";");
-    file.print(String(data.temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(humidityExternal) + ";" + String(humiditySCD30) + ";");
+    file.print(String(data.temperatureExternal) + ";" + String(temperatureSCD30) + ";" + String(data.ambientTemp) + ";" + String(data.objectTemp) + ";" + String(data.humidityCanSat) + ";"+ String(data.humidityExternal) + ";" + String(humiditySCD30) + ";");
     file.print(String(data.pressureCanSat) + ";" + String(data.pressureExternal) + ";");
     file.print(String(data.altitudeCanSat) + ";" + String(data.altitudeExternal) + ";" + String(accelerationX)+ ";");
     file.print(String(accelerationY) + ";" + String(accelerationZ) + ";" + String(rotationX) + ";");
@@ -311,6 +372,7 @@ void loop() {data.messageId++;
     file.print(String(data.latInt) + ";"  + String(data.lonInt) + ";"  + String(data.latAfterDot) + ";" + String(data.lonAfterDot) + ";");
     file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
     file.print(String(data.co2SCD30) + ";"  + String(data.co2CCS811) + ";"  + String(data.tvoc) + ";"  + String(data.o2Concentration));
+    file.println(String(a) + ";" + String(b) + ";" + String(c) + ";" + String(d) + ";" + String(e) + ";" + String(f) + ";" + String(g) + ";" + String(h) + ";" + String(k) + ";" + String(l) + ";" + String(r) + ";" + String(s) + ";" + String(t) + ";" + String(u) + ";" + String(v) + ";" + String(w));
     file.close();
 
     if (debugLog) {     
@@ -319,6 +381,8 @@ void loop() {data.messageId++;
   } else if (debugLog) {
     Serial.println("Error writing data.");
   }
+
+  digitalWrite(D13_led_pin, HIGH);
 
   Serial.println("----------------------------------------------------------");
   delay(350);
