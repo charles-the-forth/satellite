@@ -270,12 +270,9 @@ void loop() {
      String message2 = String(data4.d) + ";" + String(data4.e) + ";" + String(data4.f) + ";"
       + String(data4.g) + ";" + String(data4.h) + ";" + String(data4.i) + ";"
       + String(data4.j) + ";" + String(k) + ";" + String(l) + ";" + String(data4.r) + ";" + String(data4.s) + ";" + String(data4.t) + ";" + String(u) + ";" + String(v) + ";" + String(w);
-    unsigned long time1 = millis();
     file.print(message);
     file.print(message1);
     file.println(message2);
-    unsigned long time2 = millis();
-    Serial.println(time2 - time1);
     file.flush();
     file.close();
     if (debugLog) {     
@@ -308,7 +305,10 @@ void loop() {
     data1.lightIntensity = lightMeter.readLightLevel();
     data1.altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
     data1.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    data1.co2SCD30 = airSensor.getCO2();
+    if (airSensor.dataAvailable())
+    {
+      data1.co2SCD30 = airSensor.getCO2();
+    }
     
     if (myCCS811.dataAvailable())
     {
@@ -336,9 +336,11 @@ void loop() {
     data2.o2Concentration = readConcentration();
     data2.uvIndex = measureUVSensor();
     data2.temperatureMPU = IMU.getTemperature_C();
-    data2.temperatureSCD30 = airSensor.getTemperature();
-    data2.humiditySCD30 = airSensor.getHumidity();
-
+    if (airSensor.dataAvailable())
+    {
+      data2.temperatureSCD30 = airSensor.getTemperature();
+      data2.humiditySCD30 = airSensor.getHumidity();
+    }
     if (gps.scan(350)) {
       year = gps.getYear();
       month = gps.getMonth();
