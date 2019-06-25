@@ -28,7 +28,7 @@
 #define FREQUENCYSPECIFIC 443000000
 #define CHIP_SELECT_PIN   43
 #define INTERUP_PIN       9
-#define sd_cs_pin 4 //35
+#define sd_cs_pin 35
 
 #define D13_led_pin 42
 
@@ -237,7 +237,6 @@ void setup() {
     file.print("hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;");
     file.print("lonAfterDot;voltage_shunt;voltage_bus;current_mA;");
     file.println("voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;a;b;c;d;e;f;g;h;i;j;k;l;r;s;t;u;v;w;");
-    delay(500);
     file.close();
     if (debugLog) {     
       Serial.println("File header written."); 
@@ -260,47 +259,23 @@ void loop() {
   Serial.println("File: " + String(file));
   Serial.println("Filename: " + filename);
   if (file) {
-    file.print(String(messageId) + ";" + String(data1.lightIntensity) + ";" + String(data2.uvIndex) + ";");
-    delay(10);
-    file.print(String(data1.temperatureCanSat) + ";" + String(data2.temperatureMPU) + ";");
-    delay(10);
-    file.print(String(data1.temperatureExternal) + ";" + String(data2.temperatureSCD30) + ";" + String(data1.ambientTemp) + ";");
-    delay(10);
-    file.print(String(data1.objectTemp) + ";" + String(data1.humidityCanSat) + ";"+ String(data1.humidityExternal) + ";" + String(data2.humiditySCD30) + ";");
-    delay(10);
-    file.print(String(data1.pressureCanSat) + ";" + String(data1.pressureExternal) + ";");
-    delay(10);
-    file.print(String(data1.altitudeCanSat) + ";" + String(data1.altitudeExternal) + ";" + String(data3.accelerationX)+ ";");
-    delay(10);
-    file.print(String(data3.accelerationY) + ";" + String(data3.accelerationZ) + ";" + String(data3.rotationX) + ";");
-        delay(10);
-    file.print(String(data3.rotationY) + ";" + String(data3.rotationZ) + ";" + String(data3.magnetometerX) + ";");
-       delay(10);
-    file.print(String(data3.magnetometerY) + ";" + String(data3.magnetometerZ) + ";" + String(year) + ";");
-        delay(10);
-    file.print(String(month) + ";" + String(day) + ";" + String(hour) + ";");
-    delay(100);
-    file.print(String(minute) + ";" + String(second) + ";" + String(data2.numberOfSatellites) + ";");
-        delay(10);
-    file.print(String(data2.latInt) + ";"  + String(data2.lonInt) + ";"  + String(data2.latAfterDot) + ";" + String(data2.lonAfterDot) + ";");
-        delay(10);
-    file.print(String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";");
-        delay(10);
-    file.print(String(data1.co2SCD30) + ";"  + String(data1.co2CCS811) + ";"  + String(data2.tvoc) + ";"  + String(data2.o2Concentration) + ";");
-        delay(10);
-    file.print(String(data4.a) + ";" + String(data4.b) + ";" + String(data4.c) + ";");
-        delay(10);
-    file.print(String(data4.d) + ";" + String(data4.e) + ";" + String(data4.f) + ";");
-        delay(10);
-    file.print(String(data4.g) + ";" + String(data4.h) + ";" + String(data4.i) + ";");
-        delay(10);
-    file.print(String(data4.j) + ";" + String(k) + ";" + String(l) + ";");
-     delay(10);
-    file.print(String(data4.r) + ";" + String(data4.s) + ";" + String(data4.t) + ";");
-       delay(10);
-    file.println(String(u) + ";" + String(v) + ";" + String(w));
-    
-    delay(200);
+    String message = String(messageId) + ";" + String(data1.lightIntensity) + ";" + String(data2.uvIndex) + ";" + String(data1.temperatureCanSat) + ";" + String(data2.temperatureMPU) + ";"
+      + String(data1.temperatureExternal) + ";" + String(data2.temperatureSCD30) + ";" + String(data1.ambientTemp) + ";" + String(data1.objectTemp) + ";" + String(data1.humidityCanSat) + ";"+ String(data1.humidityExternal) + ";" + String(data2.humiditySCD30) + ";"
+      + String(data1.pressureCanSat) + ";" + String(data1.pressureExternal) + ";" + String(data1.altitudeCanSat) + ";" + String(data1.altitudeExternal) + ";" + String(data3.accelerationX)+ ";"
+      + String(data3.accelerationY) + ";" + String(data3.accelerationZ) + ";" + String(data3.rotationX) + ";" + String(data3.rotationY) + ";" + String(data3.rotationZ) + ";" + String(data3.magnetometerX) + ";";
+     String message1 = String(data3.magnetometerY) + ";" + String(data3.magnetometerZ) + ";" + String(year) + ";" + String(month) + ";" + String(day) + ";" + String(hour) + ";" + String(minute) + ";" + String(second) + ";" + String(data2.numberOfSatellites) + ";"
+      + String(data2.latInt) + ";"  + String(data2.lonInt) + ";"  + String(data2.latAfterDot) + ";" + String(data2.lonAfterDot) + ";" + String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";"
+      + String(data1.co2SCD30) + ";"  + String(data1.co2CCS811) + ";"  + String(data2.tvoc) + ";"  + String(data2.o2Concentration) + ";"
+      + String(data4.a) + ";" + String(data4.b) + ";" + String(data4.c) + ";";
+     String message2 = String(data4.d) + ";" + String(data4.e) + ";" + String(data4.f) + ";"
+      + String(data4.g) + ";" + String(data4.h) + ";" + String(data4.i) + ";"
+      + String(data4.j) + ";" + String(k) + ";" + String(l) + ";" + String(data4.r) + ";" + String(data4.s) + ";" + String(data4.t) + ";" + String(u) + ";" + String(v) + ";" + String(w);
+    unsigned long time1 = millis();
+    file.print(message);
+    file.print(message1);
+    file.println(message2);
+    unsigned long time2 = millis();
+    Serial.println(time2 - time1);
     file.flush();
     file.close();
     if (debugLog) {     
@@ -308,7 +283,7 @@ void loop() {
     }
   } else if (debugLog) {
     Serial.println("Error writing data.");
-    delay(300);
+    delay(450);
   }
   
   digitalWrite(D13_led_pin, LOW);
@@ -515,7 +490,7 @@ void loop() {
   }
   
   Serial.println("----------------------------------------------------------");
-  delay(350);
+  delay(150);
 }
 
 float measureUVSensor() {
