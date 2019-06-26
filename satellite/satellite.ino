@@ -305,24 +305,24 @@ void loop() {
     data1.lightIntensity = lightMeter.readLightLevel();
     data1.altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
     data1.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    if (airSensor.dataAvailable())
-    {
+    /*if (airSensor.dataAvailable())
+    {*/
       data1.co2SCD30 = airSensor.getCO2();
-    }
+    /*}
     
     if (myCCS811.dataAvailable())
     {
       myCCS811.readAlgorithmResults();
-   
-      data1.co2CCS811 = myCCS811.getCO2();
-      data2.tvoc = myCCS811.getTVOC();
+   */
+      data1.co2CCS811 = 20.0;//myCCS811.getCO2();
+      data2.tvoc = 10.0;//myCCS811.getTVOC();
     
-      myCCS811.setEnvironmentalData(data1.humidityExternal, data1.temperatureExternal);
+      /*myCCS811.setEnvironmentalData(data1.humidityExternal, data1.temperatureExternal);
     }
     else if (myCCS811.checkForStatusError())
     {
       printSensorError();
-    }
+    }*/
   
     if(isRadioOk)
     {
@@ -333,7 +333,7 @@ void loop() {
   } else if (messageType == 2) {
     data2.messageType = 2;
     data2.messageId = messageId;
-    data2.o2Concentration = readConcentration();
+    data2.o2Concentration = 15.89;//readConcentration();
     data2.uvIndex = measureUVSensor();
     data2.temperatureMPU = IMU.getTemperature_C();
     if (airSensor.dataAvailable())
@@ -386,26 +386,26 @@ void loop() {
   } else {
     data4.messageType = 4;
     data4.messageId = messageId;
-    spectroscope.takeMeasurements();
+    //spectroscope.takeMeasurements();
 
-    data4.a = spectroscope.getCalibratedA();
-    data4.b = spectroscope.getCalibratedB();
-    data4.c = spectroscope.getCalibratedC();
-    data4.d = spectroscope.getCalibratedD();
-    data4.e = spectroscope.getCalibratedE();
-    data4.f = spectroscope.getCalibratedF();
-    data4.g = spectroscope.getCalibratedG();
-    data4.h = spectroscope.getCalibratedH();
-    data4.i = spectroscope.getCalibratedI();
-    data4.j = spectroscope.getCalibratedJ();
-    k = spectroscope.getCalibratedK();
-    l = spectroscope.getCalibratedL();
-    data4.r = spectroscope.getCalibratedR();
-    data4.s = spectroscope.getCalibratedS();
-    data4.t = spectroscope.getCalibratedT();
-    u = spectroscope.getCalibratedU();
+    data4.a = 1.0;//spectroscope.getCalibratedA();
+    data4.b = 2.0;//spectroscope.getCalibratedB();
+    data4.c = 3.0;//spectroscope.getCalibratedC();
+    data4.d = 4.0;//spectroscope.getCalibratedD();
+    data4.e = 5.0;//spectroscope.getCalibratedE();
+    data4.f = 6.0;//spectroscope.getCalibratedF();
+    data4.g = 7.0;//spectroscope.getCalibratedG();
+    data4.h = 8.0;//spectroscope.getCalibratedH();
+    data4.i = 9.0;//spectroscope.getCalibratedI();
+    data4.j = 10.0;//spectroscope.getCalibratedJ();
+    /*k = spectroscope.getCalibratedK();
+    l = spectroscope.getCalibratedL();*/
+    data4.r = 11.0;//spectroscope.getCalibratedR();
+    data4.s = 12.0;//spectroscope.getCalibratedS();
+    data4.t = 13.0;//spectroscope.getCalibratedT();
+    /*u = spectroscope.getCalibratedU();
     v = spectroscope.getCalibratedV();
-    w = spectroscope.getCalibratedW();
+    w = spectroscope.getCalibratedW();*/
   
     if(isRadioOk)
     {
