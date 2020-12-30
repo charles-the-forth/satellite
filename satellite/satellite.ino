@@ -162,7 +162,6 @@ float current_mA;
 float voltage_load;
 
 void setup() {
-  delay(10000);
   Serial.begin(SERIAL_PORT);
   
   if (debugLog) {
@@ -205,35 +204,11 @@ void setup() {
 
 void loop() {
   messageId++;
-  
-  file = SD.open(filename, FILE_WRITE);
-  Serial.println("File: " + String(file));
-  Serial.println("Filename: " + filename);
-  if (file) {
-    String message = String(messageId) + ";" + String(data1.lightIntensity) + ";" + String(data2.uvIndex) + ";" + String(data1.temperatureCanSat) + ";" + String(data2.temperatureMPU) + ";"
-      + String(data1.temperatureExternal) + ";" + String(data2.temperatureSCD30) + ";" + String(data1.ambientTemp) + ";" + String(data1.objectTemp) + ";" + String(data1.humidityCanSat) + ";"+ String(data1.humidityExternal) + ";" + String(data2.humiditySCD30) + ";"
-      + String(data1.pressureCanSat) + ";" + String(data1.pressureExternal) + ";" + String(data1.altitudeCanSat) + ";" + String(data1.altitudeExternal) + ";" + String(data3.accelerationX)+ ";"
-      + String(data3.accelerationY) + ";" + String(data3.accelerationZ) + ";" + String(data3.rotationX) + ";" + String(data3.rotationY) + ";" + String(data3.rotationZ) + ";" + String(data3.magnetometerX) + ";";
-     String message1 = String(data3.magnetometerY) + ";" + String(data3.magnetometerZ) + ";" + String(year) + ";" + String(month) + ";" + String(day) + ";" + String(hour) + ";" + String(minute) + ";" + String(second) + ";" + String(data2.numberOfSatellites) + ";"
-      + String(data2.latInt) + ";"  + String(data2.lonInt) + ";"  + String(data2.latAfterDot) + ";" + String(data2.lonAfterDot) + ";" + String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";"
-      + String(data1.co2SCD30) + ";"  + String(data1.co2CCS811) + ";"  + String(data2.tvoc) + ";"  + String(data2.o2Concentration) + ";"
-      + String(data4.a) + ";" + String(data4.b) + ";" + String(data4.c) + ";";
-     String message2 = String(data4.d) + ";" + String(data4.e) + ";" + String(data4.f) + ";"
-      + String(data4.g) + ";" + String(data4.h) + ";" + String(data4.i) + ";"
-      + String(data4.j) + ";" + String(k) + ";" + String(l) + ";" + String(data4.r) + ";" + String(data4.s) + ";" + String(data4.t) + ";" + String(u) + ";" + String(v) + ";" + String(w);
-    file.print(message);
-    file.print(message1);
-    file.println(message2);
-    file.flush();
-    file.close();
-    if (debugLog) {     
-      Serial.println("Writing was successfull."); 
-    }
-  } else if (debugLog) {
-    Serial.println("Error writing data.");
-    delay(450);
+
+  if (isSDCardInitialised) {
+    writeDataToSDCard();
   }
-  
+
   digitalWrite(D13_led_pin, LOW);
 
   float voltage_shunt = ina219.getShuntVoltage_mV();
@@ -256,42 +231,42 @@ void loop() {
     data1.lightIntensity = lightMeter.readLightLevel();
     data1.altitudeCanSat = bme_cansat.readAltitude(SEALEVELPRESSURE_HPA);
     data1.altitudeExternal = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    /*if (airSensor.dataAvailable())
-    {*/
+
+    if (airSensor.dataAvailable()) {
       data1.co2SCD30 = airSensor.getCO2();
-    /*}
-    
-    if (myCCS811.dataAvailable())
-    {
-      myCCS811.readAlgorithmResults();
-   */
-      data1.co2CCS811 = 20.0;//myCCS811.getCO2();
-      data2.tvoc = 10.0;//myCCS811.getTVOC();
-    
-      /*myCCS811.setEnvironmentalData(data1.humidityExternal, data1.temperatureExternal);
     }
-    else if (myCCS811.checkForStatusError())
-    {
+    
+    if (myCCS811.dataAvailable()) {
+      myCCS811.readAlgorithmResults();
+      data1.co2CCS811 = myCCS811.getCO2();
+      data2.tvoc = myCCS811.getTVOC();
+    
+      myCCS811.setEnvironmentalData(data1.humidityExternal, data1.temperatureExternal);
+    } else if (myCCS811.checkForStatusError()) {
       printSensorError();
-    }*/
+    }
   
-    if(isRadioOk)
-    {
+    if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data1, sizeof(data1));
+      
+      if (debugLog) {
+        Serial.println("message1 sent.");
+      }
     }
 
     messageCounter++;
   } else if (messageType == 2) {
     data2.messageType = 2;
     data2.messageId = messageId;
-    data2.o2Concentration = 15.89;//readConcentration();
+    data2.o2Concentration = readConcentration();
     data2.uvIndex = measureUVSensor();
     data2.temperatureMPU = IMU.getTemperature_C();
-    if (airSensor.dataAvailable())
-    {
+
+    if (airSensor.dataAvailable()) {
       data2.temperatureSCD30 = airSensor.getTemperature();
       data2.humiditySCD30 = airSensor.getHumidity();
     }
+
     if (gps.scan(350)) {
       year = gps.getYear();
       month = gps.getMonth();
@@ -306,9 +281,12 @@ void loop() {
       data2.lonAfterDot = gps.getLonAfterDot();
     }
   
-    if(isRadioOk)
-    {
+    if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data2, sizeof(data2));
+      
+      if (debugLog) {
+        Serial.println("message2 sent.");
+      }
     }
 
     messageCounter++;
@@ -328,9 +306,12 @@ void loop() {
     data3.magnetometerY = IMU.getMagY_uT();
     data3.magnetometerZ = IMU.getMagZ_uT();
   
-    if(isRadioOk)
-    {
+    if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data3, sizeof(data3));
+      
+      if (debugLog) {
+        Serial.println("message3 sent.");
+      }
     }
 
     messageCounter++;
@@ -358,78 +339,19 @@ void loop() {
     v = spectroscope.getCalibratedV();
     w = spectroscope.getCalibratedW();
   
-    if(isRadioOk)
-    {
+    if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data4, sizeof(data4));
+
+      if (debugLog) {
+        Serial.println("message4 sent.");
+      }
     }
 
     messageCounter++;
   }
 
   if (debugLog) {
-    Serial.println("Message id: " + String(messageId));
-  
-    Serial.println("Light intensity: " + String(data1.lightIntensity));
-    
-    Serial.println("UV sensor: " + String(data2.uvIndex));
-
-    Serial.println("Temperature CanSat: " + String(data1.temperatureCanSat));
-    Serial.println("Temperature MPU: " + String(data2.temperatureMPU));
-    Serial.println("Temperature External: " + String(data1.temperatureExternal));
-    Serial.println("Temperature SCD30: " + String(data2.temperatureSCD30));
-    Serial.println("Ambient temperature: " + String(data1.ambientTemp));
-    Serial.println("Object temperature: " + String(data1.objectTemp));
-  
-    Serial.println("Pressure CanSat: " + String(data1.pressureCanSat));
-    Serial.println("Pressure External: " + String(data1.pressureExternal));
-
-    Serial.println("Humidity CanSat: " + String(data1.humidityCanSat));
-    Serial.println("Humidity External: " + String(data1.humidityExternal));
-    Serial.println("Humidity SCD30: " + String(data2.humiditySCD30));
-
-    Serial.println("Altitude CanSat: " + String(data1.altitudeCanSat));
-    Serial.println("Altitude External: " + String(data1.altitudeExternal));
-
-    Serial.println("O2: " + String(data2.o2Concentration) + " %");
-    Serial.println("Acceleration X: " + String(data3.accelerationX));
-    Serial.println("Acceleration Y: " + String(data3.accelerationY));
-    Serial.println("Acceleration Z: " + String(data3.accelerationZ));
-
-    Serial.println("Rotation X: " + String(data3.rotationX));
-    Serial.println("Rotation Y: " + String(data3.rotationY));
-    Serial.println("Rotation Z: " + String(data3.rotationZ));
-
-    Serial.println("Magnetometer X: " + String(data3.magnetometerX));
-    Serial.println("Magnetometer Y: " + String(data3.magnetometerY));
-    Serial.println("Magnetometer Z: " + String(data3.magnetometerZ));
-
-    Serial.println("voltage_shunt: " + String(voltage_shunt));
-    Serial.println("voltage_bus: " + String(voltage_bus));
-    Serial.println("current_mA: " + String(current_mA));
-    Serial.println("voltage_load: " + String(voltage_load));
-
-    Serial.println("CO2 SCD30: " + String(data1.co2SCD30) + " ppm");
-    Serial.println("CO2 CCS811: " + String(data1.co2CCS811) + " ppm");
-    Serial.println("TVOC CCS811: " + String(data2.tvoc) + " ppb");
-
-    Serial.println("A: " + String(data4.a));
-    Serial.println("B: " + String(data4.b));
-    Serial.println("C: " + String(data4.c));
-    Serial.println("D: " + String(data4.d));
-    Serial.println("E: " + String(data4.e));
-    Serial.println("F: " + String(data4.f));
-    Serial.println("G: " + String(data4.g));
-    Serial.println("H: " + String(data4.h));
-    Serial.println("I: " + String(data4.i));
-    Serial.println("J: " + String(data4.j));
-    Serial.println("K: " + String(k));
-    Serial.println("L: " + String(l));
-    Serial.println("R: " + String(data4.r));
-    Serial.println("S: " + String(data4.s));
-    Serial.println("T: " + String(data4.t));
-    Serial.println("U: " + String(u));
-    Serial.println("V: " + String(v));
-    Serial.println("W: " + String(w));
+    printlnMeasuredData();
   }
 
   digitalWrite(D13_led_pin, HIGH);
@@ -438,18 +360,23 @@ void loop() {
     messageType++; 
     messageCounter = 0;
   }
+
   if (messageType == 5) {
     messageType = 1;
   }
   
-  Serial.println("----------------------------------------------------------");
+  Serial.println("---------------------------------------------------------");
   delay(150);
 }
 
 float measureUVSensor() {
   float uvSensorValue = 0;
   int uvAnalog = analogRead(UV_SENSOR_PIN);
-  Serial.println(uvAnalog);
+  
+  if (debugLog) {
+    Serial.println("UV sensor analog value: " + String(uvAnalog));
+  }  
+  
   float uvVoltage = uvAnalog * (3300.0 / 1024.0);
   int uvIndexLimits [12] = { 50, 227, 318, 408, 503, 606, 696, 795, 881, 976, 1079, 1170};
   int i;
@@ -475,11 +402,9 @@ float measureUVSensor() {
   return 0;
 }
 
-float readO2Vout()
-{
+float readO2Vout() {
     long sum = 0;
-    for(int i = 0; i<32; i++)
-    {
+    for(int i = 0; i < 32; i++) {
         sum += analogRead(OXYGEN_SENSOR_PIN);
     }
 
@@ -489,8 +414,7 @@ float readO2Vout()
     return MeasuredVout;
 }
 
-float readConcentration()
-{
+float readConcentration() {
     float MeasuredVout = readO2Vout();
 
     float Concentration = MeasuredVout * 0.3 / 3.3;
@@ -499,16 +423,12 @@ float readConcentration()
     return Concentration_Percentage;
 }
 
-void printSensorError()
-{
+void printSensorError() {
   uint8_t error = myCCS811.getErrorRegister();
 
-  if ( error == 0xFF ) //comm error
-  {
+  if ( error == 0xFF ) {
     Serial.println("Failed to get ERROR_ID register.");
-  }
-  else
-  {
+  } else {
     Serial.print("Error: ");
     if (error & 1 << 5) Serial.print("HeaterSupply");
     if (error & 1 << 4) Serial.print("HeaterFault");
@@ -581,7 +501,7 @@ void initIMU() {
 void initRadio() {
   bool initialised = radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
 
-  if (!initialised) {
+  if (initialised) {
     radio.setFrequency(FREQUENCYSPECIFIC);
     radio.setHighPower(true);
 
@@ -628,7 +548,7 @@ void initSpectroscope() {
 }
 
 void writeFileHeader() {
-  filename = "result.csv";
+  filename = SDCard::getFilename();
   file = SD.open(filename, FILE_WRITE);
  
   if (file) {
@@ -647,4 +567,105 @@ void writeFileHeader() {
   } else if (debugLog) {
     Serial.println("Error opening file!");
   }
+}
+
+void writeDataToSDCard() {
+  file = SD.open(filename, FILE_WRITE);
+
+  if (debugLog) {
+    Serial.println("File: " + String(file));
+    Serial.println("Filename: " + filename);  
+  }
+
+  if (file) {
+    String message = String(messageId) + ";" + String(data1.lightIntensity) + ";" + String(data2.uvIndex) + ";" + String(data1.temperatureCanSat) + ";" + String(data2.temperatureMPU) + ";"
+      + String(data1.temperatureExternal) + ";" + String(data2.temperatureSCD30) + ";" + String(data1.ambientTemp) + ";" + String(data1.objectTemp) + ";" + String(data1.humidityCanSat) + ";"+ String(data1.humidityExternal) + ";" + String(data2.humiditySCD30) + ";"
+      + String(data1.pressureCanSat) + ";" + String(data1.pressureExternal) + ";" + String(data1.altitudeCanSat) + ";" + String(data1.altitudeExternal) + ";" + String(data3.accelerationX)+ ";"
+      + String(data3.accelerationY) + ";" + String(data3.accelerationZ) + ";" + String(data3.rotationX) + ";" + String(data3.rotationY) + ";" + String(data3.rotationZ) + ";" + String(data3.magnetometerX) + ";";
+     String message1 = String(data3.magnetometerY) + ";" + String(data3.magnetometerZ) + ";" + String(year) + ";" + String(month) + ";" + String(day) + ";" + String(hour) + ";" + String(minute) + ";" + String(second) + ";" + String(data2.numberOfSatellites) + ";"
+      + String(data2.latInt) + ";"  + String(data2.lonInt) + ";"  + String(data2.latAfterDot) + ";" + String(data2.lonAfterDot) + ";" + String(voltage_shunt) + ";"  + String(voltage_bus) + ";"  + String(current_mA) + ";" + String(voltage_load) + ";"
+      + String(data1.co2SCD30) + ";"  + String(data1.co2CCS811) + ";"  + String(data2.tvoc) + ";"  + String(data2.o2Concentration) + ";"
+      + String(data4.a) + ";" + String(data4.b) + ";" + String(data4.c) + ";";
+     String message2 = String(data4.d) + ";" + String(data4.e) + ";" + String(data4.f) + ";"
+      + String(data4.g) + ";" + String(data4.h) + ";" + String(data4.i) + ";"
+      + String(data4.j) + ";" + String(k) + ";" + String(l) + ";" + String(data4.r) + ";" + String(data4.s) + ";" + String(data4.t) + ";" + String(u) + ";" + String(v) + ";" + String(w);
+    file.print(message);
+    file.print(message1);
+    file.println(message2);
+    file.flush();
+    file.close();
+
+    if (debugLog) {     
+      Serial.println("Writing was successfull."); 
+    }
+  } else if (debugLog) {
+    Serial.println("Error writing data.");
+    delay(150);
+  }  
+}
+
+void printlnMeasuredData() {
+  Serial.println("Message id: " + String(messageId));
+  
+  Serial.println("Light intensity: " + String(data1.lightIntensity));
+  
+  Serial.println("UV sensor: " + String(data2.uvIndex));
+
+  Serial.println("Temperature CanSat: " + String(data1.temperatureCanSat));
+  Serial.println("Temperature MPU: " + String(data2.temperatureMPU));
+  Serial.println("Temperature External: " + String(data1.temperatureExternal));
+  Serial.println("Temperature SCD30: " + String(data2.temperatureSCD30));
+  Serial.println("Ambient temperature: " + String(data1.ambientTemp));
+  Serial.println("Object temperature: " + String(data1.objectTemp));
+
+  Serial.println("Pressure CanSat: " + String(data1.pressureCanSat));
+  Serial.println("Pressure External: " + String(data1.pressureExternal));
+
+  Serial.println("Humidity CanSat: " + String(data1.humidityCanSat));
+  Serial.println("Humidity External: " + String(data1.humidityExternal));
+  Serial.println("Humidity SCD30: " + String(data2.humiditySCD30));
+
+  Serial.println("Altitude CanSat: " + String(data1.altitudeCanSat));
+  Serial.println("Altitude External: " + String(data1.altitudeExternal));
+
+  Serial.println("O2: " + String(data2.o2Concentration) + " %");
+  Serial.println("Acceleration X: " + String(data3.accelerationX));
+  Serial.println("Acceleration Y: " + String(data3.accelerationY));
+  Serial.println("Acceleration Z: " + String(data3.accelerationZ));
+
+  Serial.println("Rotation X: " + String(data3.rotationX));
+  Serial.println("Rotation Y: " + String(data3.rotationY));
+  Serial.println("Rotation Z: " + String(data3.rotationZ));
+
+  Serial.println("Magnetometer X: " + String(data3.magnetometerX));
+  Serial.println("Magnetometer Y: " + String(data3.magnetometerY));
+  Serial.println("Magnetometer Z: " + String(data3.magnetometerZ));
+
+  Serial.println("voltage_shunt: " + String(voltage_shunt));
+  Serial.println("voltage_bus: " + String(voltage_bus));
+  Serial.println("current_mA: " + String(current_mA));
+  Serial.println("voltage_load: " + String(voltage_load));
+
+  Serial.println("CO2 SCD30: " + String(data1.co2SCD30) + " ppm");
+  Serial.println("CO2 CCS811: " + String(data1.co2CCS811) + " ppm");
+  Serial.println("TVOC CCS811: " + String(data2.tvoc) + " ppb");
+
+  Serial.println("A: " + String(data4.a));
+  Serial.println("B: " + String(data4.b));
+  Serial.println("C: " + String(data4.c));
+  Serial.println("D: " + String(data4.d));
+  Serial.println("E: " + String(data4.e));
+  Serial.println("F: " + String(data4.f));
+  Serial.println("G: " + String(data4.g));
+  Serial.println("H: " + String(data4.h));
+  Serial.println("I: " + String(data4.i));
+  Serial.println("J: " + String(data4.j));
+  Serial.println("K: " + String(k));
+  Serial.println("L: " + String(l));
+  Serial.println("R: " + String(data4.r));
+  Serial.println("S: " + String(data4.s));
+  Serial.println("T: " + String(data4.t));
+  Serial.println("U: " + String(u));
+  Serial.println("V: " + String(v));
+  Serial.println("W: " + String(w));
 }
