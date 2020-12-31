@@ -32,7 +32,6 @@
 #define sd_cs_pin 35
 
 #define D13_led_pin 42
-#define Serial SerialUSB
 
 const int UV_SENSOR_PIN = A1;
 const int OXYGEN_SENSOR_PIN = A3;
@@ -41,7 +40,8 @@ const int TIME_OF_MEASUREMENT = 280;
 const int TIME_OF_EQUALITY = 40;
 const int TIME_OF_SLEEP = 9680;
 
-const int SERIAL_PORT = 57600;
+const int PC_BAUDRATE = 57600;
+const bool DEBUG_LOG_ENABLED = true;
 
 const float VRefer = 5;
 
@@ -53,7 +53,7 @@ BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 SDCard sdCard;
 File file;
-DebugLogger debugLogger;
+DebugLogger debugLogger(DEBUG_LOG_ENABLED, PC_BAUDRATE);
 SCD30 airSensor;
 CCS811 myCCS811(CCS811_ADDR);
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
@@ -87,19 +87,15 @@ uint8_t hour;
 uint8_t minute;
 uint8_t second;
 
-bool debugLog = true;
-
 float voltage_shunt;
 float voltage_bus;
 float current_mA;
 float voltage_load;
 
 void setup() {
-  Serial.begin(SERIAL_PORT);
+  debugLogger.begin();
   
-  if (debugLog) {
-    Serial.println("--------------------   Setup start   --------------------");
-  }
+  debugLogger.log("--------------------   Setup start   --------------------");
 
   Wire.begin();
 
@@ -120,8 +116,8 @@ void setup() {
 
   if (isSDCardInitialised) {
     writeFileHeader();
-  } else if (debugLog) {
-    Serial.println("File header could not be written because SD card is not initialised!");
+  } else {
+    debugLogger.log("File header could not be written because SD card is not initialised!");
   }
 
   pinMode(D13_led_pin, OUTPUT);
@@ -130,9 +126,7 @@ void setup() {
   messageType = 1;
   messageCounter = 0;
   
-  if (debugLog) {
-    Serial.println("--------------------    Setup end    --------------------");
-  }
+  debugLogger.log("--------------------    Setup end    --------------------");
 }
 
 void loop() {
@@ -180,11 +174,8 @@ void loop() {
     }
   
     if(isRadioOk) {
-      radio.send(TONODEID, (const void*)&data1, sizeof(data1));
-      
-      if (debugLog) {
-        Serial.println("message1 sent.");
-      }
+      radio.send(TONODEID, (const void*)&data1, sizeof(data1));      
+      debugLogger.log("message1 sent.");
     }
 
     messageCounter++;
@@ -216,10 +207,7 @@ void loop() {
   
     if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data2, sizeof(data2));
-      
-      if (debugLog) {
-        Serial.println("message2 sent.");
-      }
+      debugLogger.log("message2 sent.");
     }
 
     messageCounter++;
@@ -240,11 +228,8 @@ void loop() {
     data3.magnetometerZ = IMU.getMagZ_uT();
   
     if(isRadioOk) {
-      radio.send(TONODEID, (const void*)&data3, sizeof(data3));
-      
-      if (debugLog) {
-        Serial.println("message3 sent.");
-      }
+      radio.send(TONODEID, (const void*)&data3, sizeof(data3));      
+      debugLogger.log("message3 sent.");
     }
 
     messageCounter++;
@@ -274,19 +259,14 @@ void loop() {
   
     if(isRadioOk) {
       radio.send(TONODEID, (const void*)&data4, sizeof(data4));
-
-      if (debugLog) {
-        Serial.println("message4 sent.");
-      }
+      debugLogger.log("message4 sent.");
     }
 
     messageCounter++;
   }
 
-  if (debugLog) {
-    debugLogger.printAllTransferedData(messageId, data1, data2, data3, data4);
-    printlnOnlyLocalData();
-  }
+  debugLogger.printAllTransferedData(messageId, data1, data2, data3, data4);
+  printlnOnlyLocalData();
 
   digitalWrite(D13_led_pin, HIGH);
 
@@ -299,9 +279,7 @@ void loop() {
     messageType = 1;
   }
 
-  if (debugLog) {
-    Serial.println("---------------------------------------------------------");
-  }
+  debugLogger.log("---------------------------------------------------------");
   delay(150);
 }
 
@@ -309,15 +287,12 @@ float measureUVSensor() {
   float uvSensorValue = 0;
   int uvAnalog = analogRead(UV_SENSOR_PIN);
   
-  if (debugLog) {
-    Serial.println("UV sensor analog value: " + String(uvAnalog));
-  }  
+  debugLogger.log("UV sensor analog value: " + String(uvAnalog));
   
   float uvVoltage = uvAnalog * (3300.0 / 1024.0);
   int uvIndexLimits [12] = { 50, 227, 318, 408, 503, 606, 696, 795, 881, 976, 1079, 1170};
   int i;
 
-  //Max measurable value.
   if (uvVoltage > 1170) {
     uvVoltage = 1170;
   }
@@ -363,74 +338,74 @@ void printSensorError() {
   uint8_t error = myCCS811.getErrorRegister();
 
   if ( error == 0xFF ) {
-    Serial.println("Failed to get ERROR_ID register.");
+    debugLogger.log("Failed to get ERROR_ID register.");
   } else {
-    Serial.print("Error: ");
-    if (error & 1 << 5) Serial.print("HeaterSupply");
-    if (error & 1 << 4) Serial.print("HeaterFault");
-    if (error & 1 << 3) Serial.print("MaxResistance");
-    if (error & 1 << 2) Serial.print("MeasModeInvalid");
-    if (error & 1 << 1) Serial.print("ReadRegInvalid");
-    if (error & 1 << 0) Serial.print("MsgInvalid");
-    Serial.println();
+    String message = "Error: ";
+    if (error & 1 << 5) message += "HeaterSupply";
+    if (error & 1 << 4) message += "HeaterFault";
+    if (error & 1 << 3) message += "MaxResistance";
+    if (error & 1 << 2) message += "MeasModeInvalid";
+    if (error & 1 << 1) message += "ReadRegInvalid";
+    if (error & 1 << 0) message += "MsgInvalid";
+    debugLogger.log(message);
   }
 }
 
 void initGPS() {
   gps.begin();
 
-  if (debugLog) {
-    gps.debugPrintOn(SERIAL_PORT);
+  if (DEBUG_LOG_ENABLED) {
+    gps.debugPrintOn(PC_BAUDRATE);
   }
 }
 
 void initExternalBME() {
   bool initialised = bme.begin(BME280_ADRESS);
   
-  if (initialised && debugLog) {
-    Serial.println("External BME280 initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("External BME280 initialisation failed!");
+  if (initialised) {
+    debugLogger.log("External BME280 initialisation successful.");
+  } else {
+    debugLogger.log("External BME280 initialisation failed!");
   }
 }
 
 void initInternalBME() {
   bool initialised = bme_cansat.begin(BME280_ADDRESS_OPEN_CANSAT);
 
-  if (initialised && debugLog) {
-    Serial.println("Internal BME280 initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("Internal BME280 initialisation failed!");
+  if (initialised) {
+    debugLogger.log("Internal BME280 initialisation successful.");
+  } else {
+    debugLogger.log("Internal BME280 initialisation failed!");
   }
 }
 
 void initAirSensor() {
   bool initialised = airSensor.begin();
 
-  if (initialised && debugLog) {
-    Serial.println("SCD30 sensor initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("SCD30 sensor initialisation failed!");
+  if (initialised) {
+    debugLogger.log("SCD30 sensor initialisation successful.");
+  } else {
+    debugLogger.log("SCD30 sensor initialisation failed!");
   }
 }
 
 void initCCS811() {
   bool initialised = myCCS811.begin();
 
-  if (initialised && debugLog) {
-    Serial.println("CCS811 sensor initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("CCS811 sensor initialisation failed!");
+  if (initialised) {
+    debugLogger.log("CCS811 sensor initialisation successful.");
+  } else {
+    debugLogger.log("CCS811 sensor initialisation failed!");
   }
 }
 
 void initIMU() {
   int status = IMU.begin();
 
-  if (status < 0 && debugLog) {
-    Serial.println("IMU initialisation unsuccessful.");
-  } else if (debugLog) {
-    Serial.println("IMU initialisation successful!");
+  if (status < 0) {
+    debugLogger.log("IMU initialisation unsuccessful.");
+  } else {
+    debugLogger.log("IMU initialisation successful!");
   }
 }
 
@@ -440,46 +415,40 @@ void initRadio() {
   if (initialised) {
     radio.setFrequency(FREQUENCYSPECIFIC);
     radio.setHighPower(true);
-
-    if (debugLog) {
-      Serial.println("RFM69HW initialisation successful."); 
-    }
+    debugLogger.log("RFM69HW initialisation successful.");
   } else {
     isRadioOk = false;
-
-    if (debugLog) {
-      Serial.println("RFM69HW initialisation failed!"); 
-    }
+    debugLogger.log("RFM69HW initialisation failed!");
   }
 }
 
 void initSDCard() {
   isSDCardInitialised = SD.begin(sd_cs_pin);
 
-  if (isSDCardInitialised && debugLog) {
-    Serial.println("SD card initialisation successful.");
-  } else if (debugLog) {   
-    Serial.println("SD card initialisation failed!"); 
+  if (isSDCardInitialised) {
+    debugLogger.log("SD card initialisation successful.");
+  } else {
+    debugLogger.log("SD card initialisation failed!"); 
   }
 }
 
 void initAdafruitMLX() {
   bool initialised = mlx.begin();
 
-  if (initialised && debugLog) {
-    Serial.println("Adafruit MLX initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("Adafruit MLX initialisation failed!");
+  if (initialised) {
+    debugLogger.log("Adafruit MLX initialisation successful.");
+  } else {
+    debugLogger.log("Adafruit MLX initialisation failed!");
   }
 }
 
 void initSpectroscope() {
   bool initialised = spectroscope.begin();
 
-  if (initialised && debugLog) {
-    Serial.println("Spectroscope initialisation successful.");
-  } else if (debugLog) {
-    Serial.println("Spectroscope initialisation failed!");
+  if (initialised) {
+    debugLogger.log("Spectroscope initialisation successful.");
+  } else {
+    debugLogger.log("Spectroscope initialisation failed!");
   }
 }
 
@@ -495,23 +464,18 @@ void writeFileHeader() {
     file.print("hour;minute;second;numOfSats;latInt;lonInt;latAfterDot;");
     file.print("lonAfterDot;voltage_shunt;voltage_bus;current_mA;");
     file.println("voltage_load;co2SCD30;co2CCS811;tvoc;o2Con;a;b;c;d;e;f;g;h;i;j;k;l;r;s;t;u;v;w;");
-    file.close();
-    
-    if (debugLog) {     
-      Serial.println("File header written."); 
-    }
-  } else if (debugLog) {
-    Serial.println("Error opening file!");
+    file.close();    
+    debugLogger.log("File header written.");
+  } else {
+    debugLogger.log("Error opening file!");
   }
 }
 
 void writeDataToSDCard() {
   file = SD.open(filename, FILE_WRITE);
 
-  if (debugLog) {
-    Serial.println("File: " + String(file));
-    Serial.println("Filename: " + filename);  
-  }
+  debugLogger.log("File: " + String(file));
+  debugLogger.log("Filename: " + filename);
 
   if (file) {
     String message = String(messageId) + ";" + String(data1.lightIntensity) + ";" + String(data2.uvIndex) + ";" + String(data1.temperatureCanSat) + ";" + String(data2.temperatureMPU) + ";"
@@ -531,25 +495,21 @@ void writeDataToSDCard() {
     file.flush();
     file.close();
 
-    if (debugLog) {     
-      Serial.println("Writing was successfull."); 
-    }
-  } else if (debugLog) {
-    Serial.println("Error writing data.");
+    debugLogger.log("Writing was successfull."); 
+  } else {
+    debugLogger.log("Error writing data.");
     delay(150);
   }  
 }
 
 void printlnOnlyLocalData() {
-  Serial.println();
-  Serial.println("voltage_shunt: " + String(voltage_shunt));
-  Serial.println("voltage_bus: " + String(voltage_bus));
-  Serial.println("current_mA: " + String(current_mA));
-  Serial.println("voltage_load: " + String(voltage_load));
-  Serial.println();
-  Serial.println("K: " + String(k));
-  Serial.println("L: " + String(l));
-  Serial.println("U: " + String(u));
-  Serial.println("V: " + String(v));
-  Serial.println("W: " + String(w));
+  debugLogger.log("voltage_shunt: " + String(voltage_shunt));
+  debugLogger.log("voltage_bus: " + String(voltage_bus));
+  debugLogger.log("current_mA: " + String(current_mA));
+  debugLogger.log("voltage_load: " + String(voltage_load));
+  debugLogger.log("K: " + String(k));
+  debugLogger.log("L: " + String(l));
+  debugLogger.log("U: " + String(u));
+  debugLogger.log("V: " + String(v));
+  debugLogger.log("W: " + String(w));
 }
