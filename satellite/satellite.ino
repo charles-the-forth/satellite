@@ -14,6 +14,7 @@
 #include <Adafruit_INA219.h>
 #include <SparkFunCCS811.h>
 #include <Adafruit_MLX90614.h>
+#include <DebugLogger.h>
 
 #define CCS811_ADDR 0x5B
 #define BME280_ADRESS 0x76
@@ -52,6 +53,7 @@ BH1750 lightMeter;
 RFM69 radio(CHIP_SELECT_PIN, INTERUP_PIN, true);
 SDCard sdCard;
 File file;
+DebugLogger debugLogger;
 SCD30 airSensor;
 CCS811 myCCS811(CCS811_ADDR);
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
@@ -62,79 +64,10 @@ uint32_t messageId;
 uint8_t messageType;
 uint8_t messageCounter;
 
-typedef struct
-{
-  uint8_t messageType;
-  uint16_t messageId;
-  float temperatureCanSat;
-  float temperatureExternal;
-  float ambientTemp;
-  float objectTemp;
-  float pressureCanSat;
-  float pressureExternal;
-  float humidityCanSat;
-  float humidityExternal;
-  uint32_t lightIntensity;
-  float altitudeCanSat;
-  float altitudeExternal;
-  uint16_t co2SCD30;
-  uint16_t co2CCS811;
-} message1;
-  
-typedef struct
-{
-  uint8_t messageType;
-  uint16_t messageId;
-  uint16_t tvoc;
-  float o2Concentration;
-  uint16_t latInt;
-  uint16_t lonInt;
-  uint32_t latAfterDot;
-  uint32_t lonAfterDot;
-  uint8_t numberOfSatellites;
-  float uvIndex;
-  float temperatureMPU;
-  float temperatureSCD30;
-  float humiditySCD30;
-} message2;
-  
-typedef struct
-{
-  uint8_t messageType;
-  uint16_t messageId;   
-  float accelerationX;
-  float accelerationY;
-  float accelerationZ;
-  float rotationX;
-  float rotationY;
-  float rotationZ;
-  float magnetometerX;
-  float magnetometerY;
-  float magnetometerZ;
-} message3;
-
-typedef struct {
-  uint8_t messageType;
-  uint16_t messageId;
-  float a;
-  float b;
-  float c;
-  float d;
-  float e;
-  float f;
-  float g;
-  float h;
-  float r;
-  float i;
-  float s;
-  float j;
-  float t;
-} message4;
-
-message1 data1;
-message2 data2;
-message3 data3;
-message4 data4;
+OcsStorage::message1 data1;
+OcsStorage::message2 data2;
+OcsStorage::message3 data3;
+OcsStorage::message4 data4;
 
 float k;
 float u;
@@ -351,7 +284,8 @@ void loop() {
   }
 
   if (debugLog) {
-    printlnMeasuredData();
+    debugLogger.printAllTransferedData(messageId, data1, data2, data3, data4);
+    printlnOnlyLocalData();
   }
 
   digitalWrite(D13_led_pin, HIGH);
@@ -364,8 +298,10 @@ void loop() {
   if (messageType == 5) {
     messageType = 1;
   }
-  
-  Serial.println("---------------------------------------------------------");
+
+  if (debugLog) {
+    Serial.println("---------------------------------------------------------");
+  }
   delay(150);
 }
 
@@ -548,7 +484,7 @@ void initSpectroscope() {
 }
 
 void writeFileHeader() {
-  filename = SDCard::getFilename();
+  filename = sdCard.getFilename();
   file = SD.open(filename, FILE_WRITE);
  
   if (file) {
@@ -604,67 +540,15 @@ void writeDataToSDCard() {
   }  
 }
 
-void printlnMeasuredData() {
-  Serial.println("Message id: " + String(messageId));
-  
-  Serial.println("Light intensity: " + String(data1.lightIntensity));
-  
-  Serial.println("UV sensor: " + String(data2.uvIndex));
-
-  Serial.println("Temperature CanSat: " + String(data1.temperatureCanSat));
-  Serial.println("Temperature MPU: " + String(data2.temperatureMPU));
-  Serial.println("Temperature External: " + String(data1.temperatureExternal));
-  Serial.println("Temperature SCD30: " + String(data2.temperatureSCD30));
-  Serial.println("Ambient temperature: " + String(data1.ambientTemp));
-  Serial.println("Object temperature: " + String(data1.objectTemp));
-
-  Serial.println("Pressure CanSat: " + String(data1.pressureCanSat));
-  Serial.println("Pressure External: " + String(data1.pressureExternal));
-
-  Serial.println("Humidity CanSat: " + String(data1.humidityCanSat));
-  Serial.println("Humidity External: " + String(data1.humidityExternal));
-  Serial.println("Humidity SCD30: " + String(data2.humiditySCD30));
-
-  Serial.println("Altitude CanSat: " + String(data1.altitudeCanSat));
-  Serial.println("Altitude External: " + String(data1.altitudeExternal));
-
-  Serial.println("O2: " + String(data2.o2Concentration) + " %");
-  Serial.println("Acceleration X: " + String(data3.accelerationX));
-  Serial.println("Acceleration Y: " + String(data3.accelerationY));
-  Serial.println("Acceleration Z: " + String(data3.accelerationZ));
-
-  Serial.println("Rotation X: " + String(data3.rotationX));
-  Serial.println("Rotation Y: " + String(data3.rotationY));
-  Serial.println("Rotation Z: " + String(data3.rotationZ));
-
-  Serial.println("Magnetometer X: " + String(data3.magnetometerX));
-  Serial.println("Magnetometer Y: " + String(data3.magnetometerY));
-  Serial.println("Magnetometer Z: " + String(data3.magnetometerZ));
-
+void printlnOnlyLocalData() {
+  Serial.println();
   Serial.println("voltage_shunt: " + String(voltage_shunt));
   Serial.println("voltage_bus: " + String(voltage_bus));
   Serial.println("current_mA: " + String(current_mA));
   Serial.println("voltage_load: " + String(voltage_load));
-
-  Serial.println("CO2 SCD30: " + String(data1.co2SCD30) + " ppm");
-  Serial.println("CO2 CCS811: " + String(data1.co2CCS811) + " ppm");
-  Serial.println("TVOC CCS811: " + String(data2.tvoc) + " ppb");
-
-  Serial.println("A: " + String(data4.a));
-  Serial.println("B: " + String(data4.b));
-  Serial.println("C: " + String(data4.c));
-  Serial.println("D: " + String(data4.d));
-  Serial.println("E: " + String(data4.e));
-  Serial.println("F: " + String(data4.f));
-  Serial.println("G: " + String(data4.g));
-  Serial.println("H: " + String(data4.h));
-  Serial.println("I: " + String(data4.i));
-  Serial.println("J: " + String(data4.j));
+  Serial.println();
   Serial.println("K: " + String(k));
   Serial.println("L: " + String(l));
-  Serial.println("R: " + String(data4.r));
-  Serial.println("S: " + String(data4.s));
-  Serial.println("T: " + String(data4.t));
   Serial.println("U: " + String(u));
   Serial.println("V: " + String(v));
   Serial.println("W: " + String(w));
